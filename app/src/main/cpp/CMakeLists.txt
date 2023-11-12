@@ -6,10 +6,10 @@
 cmake_minimum_required(VERSION 3.4.1)
 
 # 상대 경로로 프로젝트 디렉토리 설정
-set(pathPROJECT "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+set(pathPROJECT "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")
 
 # 소스 파일 경로 설정
-set(pathSOURCE "${pathPROJECT}/src/main/cpp/native-lib.cpp")
+set(pathSOURCE "${pathPROJECT}/app/src/main/cpp/native-lib.cpp")
 
 set(pathOPENCV "${pathPROJECT}/opencv")
 set(pathLIBOPENCV_JAVA ${pathOPENCV}/native/libs/${ANDROID_ABI}/libopencv_java4.so)
