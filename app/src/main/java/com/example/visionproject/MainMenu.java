@@ -11,15 +11,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
-import android.widget.TextView;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
-
-import com.example.visionproject.databinding.ActivityMainBinding;
 
 public class MainMenu extends AppCompatActivity {
 
@@ -43,10 +37,11 @@ public class MainMenu extends AppCompatActivity {
             }
         }
 
-        Button cameraViewButton = findViewById(R.id.CAMERA_VIEW);
-        Button testViewButton = findViewById(R.id.CVTEST);
-        Button SafetyAreaViewButton = findViewById(R.id.SafetyAreaButton);
-        Button AllSafetyAreaViewButton = findViewById(R.id.AllSafety);
+        Button cameraViewButton = findViewById(R.id.Camera_View_Button);
+        Button testViewButton = findViewById(R.id.CVtest_Button);
+        Button SafetyAreaViewButton = findViewById(R.id.Safety_Area_Button);
+        Button AllSafetyAreaViewButton = findViewById(R.id.AllSafety_Button);
+        Button OptionsButton = findViewById(R.id.Option_button);
         cameraViewButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
@@ -79,6 +74,15 @@ public class MainMenu extends AppCompatActivity {
             public void onClick(View view) {
                 Intent intent = new Intent(MainMenu.this, AllSafetyModeActivity.class);
                 intent.putExtra("mode",4);
+                startActivity(intent);
+            }
+        });
+
+        OptionsButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(MainMenu.this, SettingsActivity.class);
+                intent.putExtra("mode",5);
                 startActivity(intent);
             }
         });

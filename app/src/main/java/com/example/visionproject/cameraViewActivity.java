@@ -7,30 +7,19 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
+
 import androidx.core.content.ContextCompat;
 import android.util.Log;
 import android.view.SurfaceView;
-import android.view.ViewGroup;
-import android.view.Window;
-import android.view.WindowManager;
-import android.widget.TextView;
+import android.view.View;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.JavaCameraView;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfRect;
-import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
-import org.opencv.objdetect.CascadeClassifier;
+
 import static org.opencv.imgproc.Imgproc.rectangle;
-import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 
 
 import androidx.annotation.NonNull;
@@ -40,8 +29,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.util.Collections;
 import java.util.List;
 
-import com.example.visionproject.databinding.ActivityTestBinding;
-
 public class cameraViewActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
     private static final String TAG = "AndroidOpenCv";
     private CameraBridgeViewBase mCameraView;
@@ -50,14 +37,47 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     private Mat mResultMat;
     private int mMode;
 
-    public native void ConvertRGBtoGray(long matAddrInput, long matAddrResult);
+    public native long ConvertRGBtoGray(long matAddrInput);
 
     static {
-        //System.loadLibrary("opencv_java4");
+        System.loadLibrary("opencv_java4");
         System.loadLibrary("native-lib");
     }
 
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            hideSystemUI();
+        }
+    }
 
+    private void hideSystemUI() {
+        // Enables regular immersive mode.
+        // For "lean back" mode, remove SYSTEM_UI_FLAG_IMMERSIVE.
+        // Or for "sticky immersive," replace it with SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+        View decorView = getWindow().getDecorView();
+        decorView.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE
+                        // Set the content to appear under the system bars so that the
+                        // content doesn't resize when the system bars hide and show.
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        // Hide the nav bar and status bar
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN);
+    }
+
+    // Shows the system bars by removing all the flags
+    // except for the ones that make the content appear under the system bars.
+    private void showSystemUI() {
+        View decorView = getWindow().getDecorView();
+        decorView.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,9 +99,10 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
 
         mCameraView = (CameraBridgeViewBase)findViewById(R.id.activity_surface_view);
         mCameraView.setVisibility(SurfaceView.VISIBLE);
-        mCameraView.setMaxFrameSize(1280, 720);
+        //mCameraView.setMaxFrameSize(1280, 720);
         mCameraView.setCvCameraViewListener(this);
         mCameraView.setCameraIndex(0);
+        mCameraView.setCameraPermissionGranted();
     }
 
     private static final int CAMERA_PERMISSION_CODE = 200;
@@ -133,7 +154,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         super.onResume();
         if (!OpenCVLoader.initDebug()) {
             Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, mLoaderCallback);
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION, this, mLoaderCallback);
         } else {
             Log.d(TAG, "OpenCV library found inside package. Using it!");
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
@@ -180,9 +201,11 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Log.d(TAG, "onCameraFrame: Processing frame...");
-        mInputMat = inputFrame.rgba();
-        Imgproc.cvtColor(mInputMat, mInputMat, Imgproc.COLOR_RGBA2GRAY); // 예시: 그레이스케일 변환
-        return mInputMat;
+        Mat rgbaMat = inputFrame.rgba();
+        long matAddr = ConvertRGBtoGray(rgbaMat.getNativeObjAddr());
+        rgbaMat = new Mat(matAddr);
+
+        return rgbaMat;
     }
 
     //펄미션

@@ -24,28 +24,34 @@
             android:text="Hello World!" />
 
         <Button
-            android:id="@+id/CAMERA_VIEW"
-            android:layout_width="318dp"
-            android:layout_height="57dp"
+            android:id="@+id/Camera_View_Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:text="카메라화면보기" />
 
         <Button
-            android:id="@+id/SafetyAreaButton"
-            android:layout_width="321dp"
-            android:layout_height="51dp"
+            android:id="@+id/Safety_Area_Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:text="안전구역 지정캠" />
 
         <Button
-            android:id="@+id/CVTEST"
-            android:layout_width="321dp"
-            android:layout_height="51dp"
+            android:id="@+id/CVtest_Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:text="테스트버튼" />
 
         <Button
-            android:id="@+id/AllSafety"
-            android:layout_width="321dp"
-            android:layout_height="51dp"
+            android:id="@+id/AllSafety_Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:text="전체구역감지" />
+
+        <Button
+            android:id="@+id/Option_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="환경설정" />
 
     </LinearLayout>
 

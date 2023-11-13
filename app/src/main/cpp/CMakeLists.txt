@@ -27,7 +27,6 @@ include_directories(${pathOPENCV}/native/jni/include)
 
 add_library( # Sets the name of the library.
         native-lib
-
         # Sets the library as a shared library.
         SHARED
 
