@@ -6,22 +6,47 @@
     android:layout_height="match_parent"
     tools:context=".MainMenu">
 
-    <TextView
-        android:id="@+id/sample_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
+    <LinearLayout
+        android:layout_width="412dp"
+        android:layout_height="734dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:orientation="vertical"
+        android:visibility="visible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        tools:layout_editor_absoluteY="-1dp">
 
-    <Button
-        android:id="@+id/button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Button"
-        tools:layout_editor_absoluteX="141dp"
-        tools:layout_editor_absoluteY="264dp" />
+        <TextView
+            android:id="@+id/sample_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hello World!" />
+
+        <Button
+            android:id="@+id/CAMERA_VIEW"
+            android:layout_width="318dp"
+            android:layout_height="57dp"
+            android:text="카메라화면보기" />
+
+        <Button
+            android:id="@+id/SafetyAreaButton"
+            android:layout_width="321dp"
+            android:layout_height="51dp"
+            android:text="안전구역 지정캠" />
+
+        <Button
+            android:id="@+id/CVTEST"
+            android:layout_width="321dp"
+            android:layout_height="51dp"
+            android:text="테스트버튼" />
+
+        <Button
+            android:id="@+id/AllSafety"
+            android:layout_width="321dp"
+            android:layout_height="51dp"
+            android:text="전체구역감지" />
+
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
