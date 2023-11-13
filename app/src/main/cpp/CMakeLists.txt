@@ -6,13 +6,14 @@
 cmake_minimum_required(VERSION 3.4.1)
 
 # 상대 경로로 프로젝트 디렉토리 설정
+#set(pathPROJECT "C:/Users/user/AndroidStudioProjects/visionProject")
 set(pathPROJECT "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")
 
 # 소스 파일 경로 설정
 set(pathSOURCE "${pathPROJECT}/app/src/main/cpp/native-lib.cpp")
 
-set(pathOPENCV "${pathPROJECT}/opencv")
-set(pathLIBOPENCV_JAVA ${pathOPENCV}/native/libs/${ANDROID_ABI}/libopencv_java4.so)
+set(pathOPENCV "${pathPROJECT}/openCV")
+set(pathLIBOPENCV_JAVA "${pathOPENCV}/native/libs/${ANDROID_ABI}/libopencv_java4.so")
 
 set(CMAKE_VERBOSE_MAKEFILE on)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
@@ -31,7 +32,7 @@ add_library( # Sets the name of the library.
         SHARED
 
         # Provides a relative path to your source file(s).
-      #  ${pathPROJECT}/app/src/main/cpp/native-lib.cpp)
+        #${pathPROJECT}/app/src/main/cpp/native-lib.cpp)
         ${pathSOURCE})
 
 
