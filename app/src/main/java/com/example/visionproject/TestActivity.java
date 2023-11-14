@@ -22,3 +22,4 @@ public class TestActivity extends AppCompatActivity {
         tv.setText("테스트 페이지");
     }
 }
+
