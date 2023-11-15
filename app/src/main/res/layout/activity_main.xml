@@ -19,9 +19,10 @@
 
         <TextView
             android:id="@+id/sample_text"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Hello World!" />
+            android:text="임시 메인페이지"
+            android:visibility="visible" />
 
         <Button
             android:id="@+id/Camera_View_Button"
@@ -33,7 +34,13 @@
             android:id="@+id/Safety_Area_Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="안전구역 지정캠" />
+            android:text="안전구역 지정모드" />
+
+        <Button
+            android:id="@+id/AllSafety_Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="전체구역 감지모드" />
 
         <Button
             android:id="@+id/CVtest_Button"
@@ -42,16 +49,15 @@
             android:text="테스트버튼" />
 
         <Button
-            android:id="@+id/AllSafety_Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="전체구역감지" />
-
-        <Button
             android:id="@+id/Option_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="환경설정" />
+        <Button
+            android:id="@+id/Login_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="로그인" />
 
     </LinearLayout>
 

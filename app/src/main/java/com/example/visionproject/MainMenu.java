@@ -29,6 +29,8 @@ public class MainMenu extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        //invoke
+
         setContentView(R.layout.activity_main);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -42,6 +44,7 @@ public class MainMenu extends AppCompatActivity {
         Button SafetyAreaViewButton = findViewById(R.id.Safety_Area_Button);
         Button AllSafetyAreaViewButton = findViewById(R.id.AllSafety_Button);
         Button OptionsButton = findViewById(R.id.Option_button);
+        Button LoginButton = findViewById(R.id.Login_button);
         cameraViewButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
@@ -54,7 +57,7 @@ public class MainMenu extends AppCompatActivity {
         SafetyAreaViewButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(MainMenu.this, SaferyModeActivity.class);
+                Intent intent = new Intent(MainMenu.this, SafetyModeActivity.class);
                 intent.putExtra("mode",2);
                 startActivity(intent);
             }
@@ -79,6 +82,17 @@ public class MainMenu extends AppCompatActivity {
         });
 
         OptionsButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(MainMenu.this, SettingsActivity.class);
+                intent.putExtra("mode",5);
+                startActivity(intent);
+            }
+        });
+
+
+        //로그인 연동 코드
+        LoginButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
                 Intent intent = new Intent(MainMenu.this, SettingsActivity.class);

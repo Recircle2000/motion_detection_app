@@ -48,7 +48,7 @@
             android:exported="true"
             android:screenOrientation="landscape" />
         <activity
-            android:name=".SaferyModeActivity"
+            android:name=".SafetyModeActivity"
             android:configChanges="keyboardHidden|orientation"
             android:exported="true"
             android:screenOrientation="landscape" />

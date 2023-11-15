@@ -11,5 +11,4 @@
             app:title="가상 사운드 재생" />
 
     </PreferenceCategory>
-
 </PreferenceScreen>

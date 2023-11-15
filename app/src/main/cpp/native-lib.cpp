@@ -44,3 +44,21 @@ Java_com_example_visionproject_AllSafetyModeActivity_ConvertAllSafe(JNIEnv *env,
 
     // TODO: implement ConvertAllSafe()
 }
+
+
+//안전구역 감지모드 구현
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_example_visionproject_SafetyModeActivity_ConvertSafe(JNIEnv *env, jobject thiz,
+                                                              jlong mat_addr_input) {
+
+    Mat &inputImage = *(Mat *) mat_addr_input;
+    cvtColor(inputImage, inputImage, COLOR_RGBA2GRAY);
+    Mat noise(inputImage.size(), CV_32SC1);
+    //예시
+    randn(noise, 0, 10);
+
+    add(inputImage, noise, inputImage, Mat(), CV_8U);
+    return mat_addr_input;
+    // TODO: implement ConvertSafe()
+}
