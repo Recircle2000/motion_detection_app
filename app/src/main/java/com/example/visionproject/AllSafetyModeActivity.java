@@ -99,7 +99,7 @@ public class AllSafetyModeActivity extends AppCompatActivity implements CameraBr
 
         AllSafeCameraView = (CameraBridgeViewBase)findViewById(R.id.activity_AllSafe_view);
         AllSafeCameraView.setVisibility(SurfaceView.VISIBLE);
-        //AllSafeCameraView.setMaxFrameSize(1280, 720);
+        AllSafeCameraView.setMaxFrameSize(1280, 720);
         AllSafeCameraView.setCvCameraViewListener(this);
         AllSafeCameraView.setCameraIndex(0);
         AllSafeCameraView.setCameraPermissionGranted();
