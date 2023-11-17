@@ -15,6 +15,16 @@ import android.widget.Button;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
+import com.kakao.sdk.auth.model.OAuthToken;
+import com.kakao.sdk.talk.TalkApiClient;
+import com.kakao.sdk.template.model.TextTemplate;
+import com.kakao.sdk.user.UserApiClient;
+import com.kakao.sdk.user.model.User;
+
+import kotlin.Unit;
+import kotlin.jvm.functions.Function1;
+import kotlin.jvm.functions.Function2;
+
 public class MainMenu extends AppCompatActivity {
 
     // Used to load the 'visionproject' library on application startup.
@@ -23,7 +33,6 @@ public class MainMenu extends AppCompatActivity {
         System.loadLibrary("native-lib");
 
     }
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,14 +99,33 @@ public class MainMenu extends AppCompatActivity {
             }
         });
 
+        Function2<OAuthToken, Throwable, Unit> callback = new Function2<OAuthToken, Throwable, Unit>() {
+            @Override
+            public Unit invoke(OAuthToken oAuthToken, Throwable throwable) {
+                if (oAuthToken != null)
+                {
+
+                }
+                if (throwable != null)
+                {
+
+                }
+                return null;
+            }
+        };
 
         //로그인 연동 코드
         LoginButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(MainMenu.this, SettingsActivity.class);
-                intent.putExtra("mode",5);
-                startActivity(intent);
+                if(UserApiClient.getInstance().isKakaoTalkLoginAvailable(MainMenu.this))
+                {
+                    UserApiClient.getInstance().loginWithKakaoTalk(MainMenu.this, callback);
+                }
+                else
+                {
+                    UserApiClient.getInstance().loginWithKakaoAccount(MainMenu.this, callback);
+                }
             }
         });
 
