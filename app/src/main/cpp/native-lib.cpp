@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <string>
 #include <opencv2/opencv.hpp>
+#include <android/log.h>
 
 using namespace std;
 using namespace cv;
@@ -32,8 +33,8 @@ Java_com_example_visionproject_cameraViewActivity_ConvertRGBtoGray(JNIEnv *env, 
 //전체 영역 감지 모드 구현
 extern "C"
 JNIEXPORT jlong JNICALL
-Java_com_example_visionproject_AllSafetyModeActivity_ConvertAllSafe(JNIEnv *env, jobject thiz,
-                                                                    jlong mat_addr_input) {
+Java_com_example_visionproject_AllSafetyVisionModeActivity_ConvertAllSafe(JNIEnv *env, jobject thiz,
+                                                                          jlong mat_addr_input) {
 
     Mat &inputImage = *(Mat *) mat_addr_input;
 
@@ -49,17 +50,31 @@ Java_com_example_visionproject_AllSafetyModeActivity_ConvertAllSafe(JNIEnv *env,
 //안전구역 감지모드 구현
 extern "C"
 JNIEXPORT jlong JNICALL
-Java_com_example_visionproject_SafetyModeActivity_ConvertSafe(JNIEnv *env, jobject thiz,
-                                                              jlong mat_addr_input) {
+Java_com_example_visionproject_SafetyVisionModeActivity_ConvertSafe(JNIEnv *env, jobject thiz,
+                                                                    jlong mat_addr_input, jint x,
+                                                                    jint y, jint width, jint height) {
+    Rect roiRect(x, y, width, height); // 관심영역 좌표
 
-    Mat &inputImage = *(Mat *) mat_addr_input;
-    cvtColor(inputImage, inputImage, COLOR_RGBA2GRAY);
-    Mat noise(inputImage.size(), CV_32SC1);
-    //예시
-    randn(noise, 0, 10);
+    Mat &inputImage = *(Mat *) mat_addr_input; // 원본
+    Mat displayImage = inputImage.clone(); // 출력전용
+    Mat RoiImage;
+    //roi지정이 되었을 경우에만 원본 이미지를 자름
+    if (roiRect.x != 0 && roiRect.y != 0 && roiRect.width > 0 && roiRect.height > 0) {
+        RoiImage = inputImage(roiRect); // 원본 자른거
+        //RoiImage = ~RoiImage; //디버그용
+        //cvtColor(RoiImage, RoiImage, COLOR_RGBA2GRAY);
+        __android_log_print(ANDROID_LOG_INFO, "SafeMode", " roi 지정됨. 원본 사이즈 %d x %d 자른거 사이즈 %d x %d",
+                            inputImage.size().width,inputImage.size().height ,RoiImage.size().width,RoiImage.size().height);
+    } else { //roi지정이 안되었을 경우 자르지 않고 그대로 얕은복사.
+        RoiImage = inputImage;
+        __android_log_print(ANDROID_LOG_INFO, "SafeMode", " roi 지정안됨. 원본 사이즈 %d x %d 자른거 사이즈 %d x %d",
+                            inputImage.size().width,inputImage.size().height ,RoiImage.size().width,RoiImage.size().height);
+    }
+    // 소스 영상 Mat클래스 inputImage 대신 RoiImage로 이름만 바꿔서 개발하면 자른 이미지에 대한 움직임 감지 가능\
+    // 움직임 감지 연산만 RoiImage에서 진행.
+    cvtColor(RoiImage, RoiImage, COLOR_RGBA2GRAY);
 
-    add(inputImage, noise, inputImage, Mat(), CV_8U);
-    return mat_addr_input;
+    return (jlong)new cv::Mat(inputImage);; // 화면출력 전용. 자른 이미지를 리턴하면 해상도 차이로 크래시 발생.
     // TODO: implement ConvertSafe()
 }
 
@@ -120,3 +135,21 @@ int main()
 
     return 0;
 }*/
+
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_example_visionproject_SafetyVisionModeActivity_DrawROI(JNIEnv *env, jobject thiz, jlong mat_addr_input, jint x,
+                                                                jint y, jint width, jint height) {
+
+    Rect roiRect(x, y, width, height);
+    Mat &inputImage = *(Mat *) mat_addr_input;
+
+    rectangle(inputImage, roiRect, Scalar(0,255,0),4);
+
+   // inputImage=inputImage(roiRect);
+
+
+    return mat_addr_input;
+    // TODO: implement SetROI()
+}
