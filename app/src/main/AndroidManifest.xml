@@ -45,12 +45,12 @@
             android:name=".TestActivity"
             android:exported="false" />
         <activity
-            android:name=".AllSafetyModeActivity"
+            android:name=".AllSafetyVisionModeActivity"
             android:configChanges="keyboardHidden|orientation"
             android:exported="true"
             android:screenOrientation="landscape" />
         <activity
-            android:name=".SafetyModeActivity"
+            android:name=".SafetyVisionModeActivity"
             android:configChanges="keyboardHidden|orientation"
             android:exported="true"
             android:screenOrientation="landscape" />

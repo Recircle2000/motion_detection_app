@@ -29,15 +29,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.util.Collections;
 import java.util.List;
 
-public class SafetyModeActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
-    private static final String TAG = "SafeMode";
-    private CameraBridgeViewBase SafeCameraView;
+public class AllSafetyVisionModeActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
+    private static final String TAG = "AllSafeMode";
+    private CameraBridgeViewBase AllSafeCameraView;
 
     private Mat mInputMat;
     private Mat mResultMat;
     private int mMode;
 
-    public native long ConvertSafe(long matAddrInput);
+    public native long ConvertAllSafe(long matAddrInput);
 
     static {
         System.loadLibrary("opencv_java4");
@@ -89,7 +89,7 @@ public class SafetyModeActivity extends AppCompatActivity implements CameraBridg
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         Log.d(TAG, "onCreate: Starting cameraViewActivity");
-        setContentView(R.layout.activity_safety_mode);
+        setContentView(R.layout.activity_all_safety_mode);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!hasPermissions(PERMISSIONS)) {
@@ -97,12 +97,12 @@ public class SafetyModeActivity extends AppCompatActivity implements CameraBridg
             }
         }
 
-        SafeCameraView = (CameraBridgeViewBase)findViewById(R.id.activity_safe_view);
-        SafeCameraView.setVisibility(SurfaceView.VISIBLE);
-        //AllSafeCameraView.setMaxFrameSize(1280, 720);
-        SafeCameraView.setCvCameraViewListener(this);
-        SafeCameraView.setCameraIndex(0);
-        SafeCameraView.setCameraPermissionGranted();
+        AllSafeCameraView = (CameraBridgeViewBase)findViewById(R.id.activity_AllSafe_view);
+        AllSafeCameraView.setVisibility(SurfaceView.VISIBLE);
+        AllSafeCameraView.setMaxFrameSize(1280, 720);
+        AllSafeCameraView.setCvCameraViewListener(this);
+        AllSafeCameraView.setCameraIndex(0);
+        AllSafeCameraView.setCameraPermissionGranted();
     }
 
     private static final int CAMERA_PERMISSION_CODE = 200;
@@ -136,7 +136,7 @@ public class SafetyModeActivity extends AppCompatActivity implements CameraBridg
     }
 
     protected List<? extends CameraBridgeViewBase> getCameraViewList() {
-        return Collections.singletonList(SafeCameraView);
+        return Collections.singletonList(AllSafeCameraView);
     }
 
 
@@ -145,8 +145,8 @@ public class SafetyModeActivity extends AppCompatActivity implements CameraBridg
     @Override
     public void onPause() {
         super.onPause();
-        if (SafeCameraView != null)
-            SafeCameraView.disableView();
+        if (AllSafeCameraView != null)
+            AllSafeCameraView.disableView();
     }
 
     @Override
@@ -167,7 +167,7 @@ public class SafetyModeActivity extends AppCompatActivity implements CameraBridg
             switch (status) {
                 case LoaderCallbackInterface.SUCCESS: {
                     Log.d(TAG, "정상");
-                    SafeCameraView.enableView();
+                    AllSafeCameraView.enableView();
                 }
                 break;
                 default: {
@@ -183,8 +183,8 @@ public class SafetyModeActivity extends AppCompatActivity implements CameraBridg
     public void onDestroy() {
         super.onDestroy();
 
-        if (SafeCameraView != null) {
-            SafeCameraView.disableView();
+        if (AllSafeCameraView != null) {
+            AllSafeCameraView.disableView();
         }
     }
 
@@ -198,11 +198,12 @@ public class SafetyModeActivity extends AppCompatActivity implements CameraBridg
         Log.d(TAG, "카메라 뷰 정지");
     }
 
+
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Log.d(TAG, "onCameraFrame: Processing frame...");
         Mat rgbaMat = inputFrame.rgba();
-        long matAddr = ConvertSafe(rgbaMat.getNativeObjAddr());
+        long matAddr = ConvertAllSafe(rgbaMat.getNativeObjAddr());
         rgbaMat = new Mat(matAddr);
 
         return rgbaMat;
@@ -250,7 +251,7 @@ public class SafetyModeActivity extends AppCompatActivity implements CameraBridg
     @TargetApi(Build.VERSION_CODES.M)
     private void showDialogForPermission(String msg) {
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(SafetyModeActivity.this);
+        AlertDialog.Builder builder = new AlertDialog.Builder(AllSafetyVisionModeActivity.this);
         builder.setTitle("알림");
         builder.setMessage(msg);
         builder.setCancelable(false);

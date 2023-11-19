@@ -16,13 +16,9 @@ import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
 import com.kakao.sdk.auth.model.OAuthToken;
-import com.kakao.sdk.talk.TalkApiClient;
-import com.kakao.sdk.template.model.TextTemplate;
 import com.kakao.sdk.user.UserApiClient;
-import com.kakao.sdk.user.model.User;
 
 import kotlin.Unit;
-import kotlin.jvm.functions.Function1;
 import kotlin.jvm.functions.Function2;
 
 public class MainMenu extends AppCompatActivity {
@@ -39,7 +35,6 @@ public class MainMenu extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         //invoke
-
         setContentView(R.layout.activity_main);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -66,7 +61,7 @@ public class MainMenu extends AppCompatActivity {
         SafetyAreaViewButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(MainMenu.this, SafetyModeActivity.class);
+                Intent intent = new Intent(MainMenu.this, SafetyVisionModeActivity.class);
                 intent.putExtra("mode",2);
                 startActivity(intent);
             }
@@ -84,7 +79,7 @@ public class MainMenu extends AppCompatActivity {
         AllSafetyAreaViewButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(MainMenu.this, AllSafetyModeActivity.class);
+                Intent intent = new Intent(MainMenu.this, AllSafetyVisionModeActivity.class);
                 intent.putExtra("mode",4);
                 startActivity(intent);
             }
