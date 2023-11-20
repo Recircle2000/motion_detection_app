@@ -135,7 +135,7 @@
                 android:layout_alignParentEnd="true"
                 android:background="@drawable/rectangle"
                 android:contentDescription="테스트버튼"
-                />
+               />
 
             <Button
                 android:id="@+id/Option_button"
@@ -209,7 +209,7 @@
                 android:textColor="#000000"
                 android:textSize="25sp"
                 android:textStyle="bold"
-                />
+                 />
 
 
         </RelativeLayout>

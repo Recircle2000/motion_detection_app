@@ -132,6 +132,14 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         SafeCameraView.setCameraPermissionGranted();
 
         rectColor = new Scalar(255,0,0,255);
+        Button button = findViewById(R.id.button);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(getApplicationContext(),MainMenu.class);
+                startActivity(intent);
+            }
+        });
     }
 
     private static final int CAMERA_PERMISSION_CODE = 200;

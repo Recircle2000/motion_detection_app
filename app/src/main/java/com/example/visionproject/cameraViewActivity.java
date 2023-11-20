@@ -12,12 +12,17 @@ import androidx.core.content.ContextCompat;
 import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
+import android.widget.Button;
+
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+
+
+
 
 import static org.opencv.imgproc.Imgproc.rectangle;
 
@@ -36,6 +41,11 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     private Mat mInputMat;
     private Mat mResultMat;
     private int mMode;
+
+
+
+
+
 
     public native long ConvertRGBtoGray(long matAddrInput);
 
@@ -103,6 +113,16 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         mCameraView.setCvCameraViewListener(this);
         mCameraView.setCameraIndex(0);
         mCameraView.setCameraPermissionGranted();
+
+        Button button = findViewById(R.id.button);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(getApplicationContext(),MainMenu.class);
+                startActivity(intent);
+            }
+        });
+
     }
 
     private static final int CAMERA_PERMISSION_CODE = 200;
@@ -266,4 +286,6 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         });
         builder.create().show();
     }
+
+
 }
