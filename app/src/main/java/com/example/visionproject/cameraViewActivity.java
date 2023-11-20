@@ -20,10 +20,10 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
 
-
-
+import static org.opencv.imgproc.Imgproc.COLOR_RGBA2GRAY;
 import static org.opencv.imgproc.Imgproc.rectangle;
 
 
@@ -32,7 +32,9 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 public class cameraViewActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
     private static final String TAG = "AndroidOpenCv";
@@ -47,7 +49,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
 
 
 
-    public native long ConvertRGBtoGray(long matAddrInput);
+    public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
 
     static {
         System.loadLibrary("opencv_java4");
@@ -218,13 +220,32 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         Log.d(TAG, "카메라 뷰 정지");
     }
 
+    Queue<Mat> MatQueue2 = new LinkedList<>();
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        Log.d(TAG, "onCameraFrame: Processing frame...");
         Mat rgbaMat = inputFrame.rgba();
-        long matAddr = ConvertRGBtoGray(rgbaMat.getNativeObjAddr());
-        rgbaMat = new Mat(matAddr);
+        Imgproc.cvtColor(rgbaMat,rgbaMat,COLOR_RGBA2GRAY);
+// 폭과 높이를 각각 얻기
+        if (MatQueue2.isEmpty()) { // 큐가 비어있으면 같은 프레임3개를 일단 채움.
+            MatQueue2.offer(rgbaMat);
+            MatQueue2.offer(rgbaMat);
+            MatQueue2.offer(rgbaMat);
+        } else { // 아니면 앞에있는 프레임1개를 빼고 뒤에다가 프레임을 채움.
+            MatQueue2.remove();
+            MatQueue2.offer(rgbaMat);
+        }
+        Mat frame1 = MatQueue2.poll(); //맨 앞에있는 프레임을 각각 Mat 클래스에다가 저장
+        Mat frame2 = MatQueue2.poll();
+        Mat frame3 = MatQueue2.poll();
 
+        MatQueue2.offer(frame1); // 비워진 큐를 다시 순서대로 채워넣음.
+        MatQueue2.offer(frame2);
+        MatQueue2.offer(frame3);
+        Log.d(TAG, "onCameraFrame: Processing frame...");
+        //움직임 감지 연산을 위해 프레임 3개를 한번에 보냄.
+        long matAddr = ConvertRGBtoGray(frame1.getNativeObjAddr(),frame2.getNativeObjAddr(),frame3.getNativeObjAddr());
+        rgbaMat = new Mat(matAddr);
+        //출력
         return rgbaMat;
     }
 

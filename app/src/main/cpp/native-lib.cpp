@@ -19,13 +19,33 @@ Java_com_example_visionproject_MainMenu_stringFromJNI(
 extern "C"
 JNIEXPORT jlong JNICALL
 Java_com_example_visionproject_cameraViewActivity_ConvertRGBtoGray(JNIEnv *env, jobject thiz,
-                                                                   jlong mat_addr_input) {
-    Mat &inputImage = *(Mat *) mat_addr_input;
+                                                                   jlong mat_addr_input1,jlong mat_addr_input2,jlong mat_addr_input3) {
+    //받아온 프레임3개를 각각 inputImage에 저장
+    Mat &inputImage1 = *(Mat *) mat_addr_input1;
+    Mat &inputImage2 = *(Mat *) mat_addr_input2;
+    Mat &inputImage3 = *(Mat *) mat_addr_input3;
 
-    //예시
-    cvtColor(inputImage, inputImage, COLOR_RGBA2GRAY);
-    Canny(inputImage,inputImage,50,150);
-    return mat_addr_input;
+    //차이점 계산을 위한 임시 Mat 클래스 및 결과물 Mat 클래스.
+    Mat diff1, diff2, diff;
+    //1-2 차이점 계산 후, 2-3차이점 계산.
+    absdiff(inputImage1,inputImage2,diff1);
+    absdiff(inputImage2,inputImage3,diff2);
+    double thresh = 30;
+    Mat diff1_t, diff2_t;
+    // diff1에 대한 이진화 수행
+    threshold(diff1, diff1_t, thresh, 255, THRESH_BINARY);
+
+    // diff2에 대한 이진화 수행
+    threshold(diff2, diff2_t, thresh, 255, THRESH_BINARY);
+
+    //이진화 수행한 1-2, 2-3 프레임을 비트연산으로 합침.
+    bitwise_and(diff1_t,diff2_t,diff);
+
+    //작은 노이즈 제거
+    Mat k = getStructuringElement(MORPH_CROSS,Size(3,3));
+    morphologyEx(diff, diff, MORPH_OPEN,k);
+
+    return (jlong)new cv::Mat(diff);
     // TODO: implement ConvertRGBtoGray()
 }
 
