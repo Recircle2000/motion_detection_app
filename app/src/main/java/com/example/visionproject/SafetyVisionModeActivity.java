@@ -44,7 +44,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class SafetyVisionModeActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2, View.OnTouchListener {
-    private static final String TAG = "SafeMode";
+    private static final String TAG = "AndroidOpenCv";
     private CameraBridgeViewBase SafeCameraView;
     private Scalar rectColor;
     private Rect roi = new Rect(0,0,0,0); // roi 초기화
@@ -105,7 +105,7 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         Log.d(TAG, "onCreate: Starting cameraViewActivity");
         setContentView(R.layout.activity_safety_mode);
         rect16x9 = calculate16x9Rect();
-        Toast.makeText(getApplicationContext(), "위험 구역을 드래그 하여 지정해주세요! ",Toast.LENGTH_LONG).show();
+
         Button initROIButton = findViewById(R.id.init_ROI);
         initROIButton.setOnClickListener(new View.OnClickListener(){
             @Override
@@ -126,18 +126,17 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         SafeCameraView.setVisibility(SurfaceView.VISIBLE);
         //SafeCameraView.setMaxFrameSize(displayMetrics.widthPixels,displayMetrics.heightPixels);
         SafeCameraView.setCvCameraViewListener(this);
-        SafeCameraView.setMaxFrameSize(1920,1080);
+        //SafeCameraView.setMaxFrameSize(1920, 1080);
         SafeCameraView.setCameraIndex(0);
         SafeCameraView.setOnTouchListener(this);
         SafeCameraView.setCameraPermissionGranted();
-
+        Toast.makeText(getApplicationContext(), "위험 구역을 드래그 하여 지정해주세요! ",Toast.LENGTH_LONG).show();
         rectColor = new Scalar(255,0,0,255);
         Button button = findViewById(R.id.button);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(getApplicationContext(),MainMenu.class);
-                startActivity(intent);
+                finish();
             }
         });
     }
@@ -147,6 +146,7 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
     @Override
     protected void onStart() {
         super.onStart();
+
         boolean _Permission = true; //변수 추가
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){//최소 버전보다 버전이 높은지 확인
             if(checkSelfPermission(CAMERA_SERVICE) != PackageManager.PERMISSION_GRANTED) {
@@ -215,6 +215,7 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
     @Override
     public void onCameraViewStarted(int width, int height) {
         Log.d(TAG, "onCameraViewStarted: Camera dimensions - Width: " + width + ", Height: " + height);
+
     }
 
     @Override
@@ -233,6 +234,7 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         if (roi.height != 0 && roi.width > 0 && roi.height > 0) { //roi 지정이 되었을경우.
             matAddr = DrawROI(rgbaMat.getNativeObjAddr(),roi.x, roi.y, roi.width, roi.height); // 원본 영상에 ROI 사각형 그리기
             rgbaMat = new Mat(matAddr);
+            Mat test1 = rgbaMat;
             matROI = ConvertSafe(rgbaMat.getNativeObjAddr(),roi.x, roi.y, roi.width, roi.height); // roi영역 자르고 움직임 감지
             Log.d(TAG, "컨버팅 Roi x: " + roi.x + ",y: " + roi.y + ",width: " + roi.width + ",height: " + roi.height );
             rgbaMat = new Mat(matROI);
