@@ -1,60 +1,82 @@
 package com.example.visionproject;
 
 import android.annotation.SuppressLint;
-import android.annotation.TargetApi;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
-import android.widget.Button;
-
-
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
-
-
-import static org.opencv.imgproc.Imgproc.COLOR_RGBA2GRAY;
-import static org.opencv.imgproc.Imgproc.rectangle;
-
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
+import android.annotation.TargetApi;
+import android.Manifest;
+import android.widget.Toast;
 
-public class cameraViewActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
-    private static final String TAG = "AndroidOpenCv";
-    private CameraBridgeViewBase mCameraView;
+
+
+
+public class AllSafetyVisionModeActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
+    private static final String TAG = "AllSafeMode";
+    private CameraBridgeViewBase AllSafeCameraView;
 
     private Mat mInputMat;
     private Mat mResultMat;
     private int mMode;
 
-
-
-
-
-
-    public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
+    // JNI 함수 선언
+    public native long[] ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
 
     static {
         System.loadLibrary("opencv_java4");
         System.loadLibrary("native-lib");
     }
+
+    @Override
+    public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+        Log.d(TAG, "onCameraFrame: Processing frame...");
+        Mat rgbaMat = inputFrame.rgba();
+        long[] result = ConvertRGBtoGray(rgbaMat.getNativeObjAddr(), rgbaMat.getNativeObjAddr(), rgbaMat.getNativeObjAddr());
+        Mat diffMat = new Mat(result[1]);
+
+        // 움직임이 감지되면 알림 보내기
+        if (result[0] == 1) {
+            sendNotification("Motion detected");
+        }
+
+        return rgbaMat;
+    }
+
+    // 알림 보내는 메서드
+    private void sendNotification(String message) {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
+                .setSmallIcon(R.drawable.notification_icon)// 아이콘 추가완료
+                .setContentTitle("Motion Detection")
+                .setContentText(message)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+
+        // notificationId는 알림을 업데이트하거나 삭제하기 위한 고유 ID입니다.
+        int notificationId = 1;
+        notificationManager.notify(notificationId, builder.build());
+    }
+
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
@@ -98,10 +120,17 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         Intent intent = getIntent();
         mMode = intent.getIntExtra("mode", 0);
 
+        // 카메라 권한 체크 및 요청 코드
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_DENIED) {
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
+        }
+
+
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         Log.d(TAG, "onCreate: Starting cameraViewActivity");
-        setContentView(R.layout.activity_cameraview);
+        setContentView(R.layout.activity_all_safety_mode);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!hasPermissions(PERMISSIONS)) {
@@ -109,22 +138,12 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
             }
         }
 
-        mCameraView = (CameraBridgeViewBase)findViewById(R.id.activity_surface_view);
-        mCameraView.setVisibility(SurfaceView.VISIBLE);
-        //mCameraView.setMaxFrameSize(1280, 720);
-        mCameraView.setCvCameraViewListener(this);
-        mCameraView.setCameraIndex(0);
-        mCameraView.setCameraPermissionGranted();
-
-        Button button = findViewById(R.id.button);
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(getApplicationContext(),MainMenu.class);
-                startActivity(intent);
-            }
-        });
-
+        AllSafeCameraView = (CameraBridgeViewBase)findViewById(R.id.activity_AllSafe_view);
+        AllSafeCameraView.setVisibility(SurfaceView.VISIBLE);
+        AllSafeCameraView.setMaxFrameSize(1920, 1080);
+        AllSafeCameraView.setCvCameraViewListener(this);
+        AllSafeCameraView.setCameraIndex(0);
+        AllSafeCameraView.setCameraPermissionGranted();
     }
 
     private static final int CAMERA_PERMISSION_CODE = 200;
@@ -158,7 +177,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     }
 
     protected List<? extends CameraBridgeViewBase> getCameraViewList() {
-        return Collections.singletonList(mCameraView);
+        return Collections.singletonList(AllSafeCameraView);
     }
 
 
@@ -167,8 +186,8 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     @Override
     public void onPause() {
         super.onPause();
-        if (mCameraView != null)
-            mCameraView.disableView();
+        if (AllSafeCameraView != null)
+            AllSafeCameraView.disableView();
     }
 
     @Override
@@ -189,7 +208,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
             switch (status) {
                 case LoaderCallbackInterface.SUCCESS: {
                     Log.d(TAG, "정상");
-                    mCameraView.enableView();
+                    AllSafeCameraView.enableView();
                 }
                 break;
                 default: {
@@ -205,8 +224,8 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     public void onDestroy() {
         super.onDestroy();
 
-        if (mCameraView != null) {
-            mCameraView.disableView();
+        if (AllSafeCameraView != null) {
+            AllSafeCameraView.disableView();
         }
     }
 
@@ -220,34 +239,16 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         Log.d(TAG, "카메라 뷰 정지");
     }
 
-    Queue<Mat> MatQueue2 = new LinkedList<>();
-    @Override
-    public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        Mat rgbaMat = inputFrame.rgba();
-        Imgproc.cvtColor(rgbaMat,rgbaMat,COLOR_RGBA2GRAY);
-// 폭과 높이를 각각 얻기
-        if (MatQueue2.isEmpty()) { // 큐가 비어있으면 같은 프레임3개를 일단 채움.
-            MatQueue2.offer(rgbaMat);
-            MatQueue2.offer(rgbaMat);
-            MatQueue2.offer(rgbaMat);
-        } else { // 아니면 앞에있는 프레임1개를 빼고 뒤에다가 프레임을 채움.
-            MatQueue2.remove();
-            MatQueue2.offer(rgbaMat);
-        }
-        Mat frame1 = MatQueue2.poll(); //맨 앞에있는 프레임을 각각 Mat 클래스에다가 저장
-        Mat frame2 = MatQueue2.poll();
-        Mat frame3 = MatQueue2.poll();
 
-        MatQueue2.offer(frame1); // 비워진 큐를 다시 순서대로 채워넣음.
-        MatQueue2.offer(frame2);
-        MatQueue2.offer(frame3);
+    /*@Override
+    public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Log.d(TAG, "onCameraFrame: Processing frame...");
-        //움직임 감지 연산을 위해 프레임 3개를 한번에 보냄.
-        long matAddr = ConvertRGBtoGray(frame1.getNativeObjAddr(),frame2.getNativeObjAddr(),frame3.getNativeObjAddr());
+        Mat rgbaMat = inputFrame.rgba();
+        long matAddr = ConvertAllSafe(rgbaMat.getNativeObjAddr());
         rgbaMat = new Mat(matAddr);
-        //출력
+
         return rgbaMat;
-    }
+    }*/
 
     //펄미션
     static final int PERMISSIONS_REQUEST_CODE = 1000;
@@ -263,6 +264,20 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         }
         return true;
     }
+    public void useCamera() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED) {
+            // 권한이 부여되지 않았을 경우
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
+        } else {
+            // 권한이 이미 부여된 경우, 카메라 기능을 사용합니다.
+            startCamera();
+        }
+    }
+    public void startCamera() {
+        // 카메라를 시작하는 코드
+    }
+
 
 
     @SuppressLint("SuspiciousIndentation")
@@ -281,7 +296,15 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
 
                     if (!cameraPermissionAccepted)
                         Log.e(TAG, "onRequestPermissionsResult: Camera permission denied.");
-                        showDialogForPermission("앱을 실행하려면 퍼미션을 허가하셔야합니다.");
+                    showDialogForPermission("앱을 실행하려면 퍼미션을 허가하셔야합니다.");
+                }
+                break;
+            case CAMERA_PERMISSION_CODE:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // 권한이 부여된 경우, 카메라 관련 작업을 계속합니다.
+                } else {
+                    // 권한이 거부된 경우, 사용자에게 알리거나 다른 작업을 수행합니다.
+                    Toast.makeText(this, "Camera permission is required to use this feature.", Toast.LENGTH_SHORT).show();
                 }
                 break;
         }
@@ -291,7 +314,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     @TargetApi(Build.VERSION_CODES.M)
     private void showDialogForPermission(String msg) {
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(cameraViewActivity.this);
+        AlertDialog.Builder builder = new AlertDialog.Builder(AllSafetyVisionModeActivity.this);
         builder.setTitle("알림");
         builder.setMessage(msg);
         builder.setCancelable(false);
@@ -307,6 +330,4 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         });
         builder.create().show();
     }
-
-
 }
