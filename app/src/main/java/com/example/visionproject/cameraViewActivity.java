@@ -233,7 +233,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         Imgproc.cvtColor(rgbaMat, rgbaMat, COLOR_RGBA2GRAY);
         MatQueue2 = processqueue(processRoi(rgbaMat));
         diff.release();
-        return processRoi(rgbaMat);
+        return processframe();
     }
 
     private Mat processRoi(Mat rgbaMat){
@@ -242,6 +242,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
             Core.bitwise_not(RoiImage, RoiImage);
             Imgproc.rectangle(rgbaMat,roi, new Scalar(0,255,0),4);
             Log.d(TAG, "컨버팅 Roi x: " + roi.x + ",y: " + roi.y + ",width: " + roi.width + ",height: " + roi.height );
+            RoiImage.release();
             return rgbaMat;
         } else{
             Log.d(TAG,"roi처리안됨");
@@ -258,7 +259,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         Core.absdiff(frame1, frame2, diff1);
         Core.absdiff(frame2, frame3, diff2);
 
-        double thresh = 30;
+        double thresh = 10;
         Mat diff1_t = new Mat();
         Mat diff2_t = new Mat();
 
