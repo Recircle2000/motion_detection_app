@@ -1,33 +1,35 @@
 package com.example.visionproject;
 
 import android.annotation.SuppressLint;
-import android.annotation.TargetApi;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
-
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
-
-import static org.opencv.imgproc.Imgproc.rectangle;
-
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-
 import java.util.Collections;
 import java.util.List;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
+import android.annotation.TargetApi;
+import android.Manifest;
+import android.widget.Toast;
+
+
+
 
 public class AllSafetyVisionModeActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
     private static final String TAG = "AllSafeMode";
@@ -37,12 +39,44 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
     private Mat mResultMat;
     private int mMode;
 
-    public native long ConvertAllSafe(long matAddrInput);
+    // JNI 함수 선언
+    public native long[] ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
 
     static {
         System.loadLibrary("opencv_java4");
         System.loadLibrary("native-lib");
     }
+
+    @Override
+    public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+        Log.d(TAG, "onCameraFrame: Processing frame...");
+        Mat rgbaMat = inputFrame.rgba();
+        long[] result = ConvertRGBtoGray(rgbaMat.getNativeObjAddr(), rgbaMat.getNativeObjAddr(), rgbaMat.getNativeObjAddr());
+        Mat diffMat = new Mat(result[1]);
+
+        // 움직임이 감지되면 알림 보내기
+        if (result[0] == 1) {
+            sendNotification("Motion detected");
+        }
+
+        return rgbaMat;
+    }
+
+    // 알림 보내는 메서드
+    private void sendNotification(String message) {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
+                .setSmallIcon(R.drawable.notification_icon)// 아이콘 추가완료
+                .setContentTitle("Motion Detection")
+                .setContentText(message)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+
+        // notificationId는 알림을 업데이트하거나 삭제하기 위한 고유 ID입니다.
+        int notificationId = 1;
+        notificationManager.notify(notificationId, builder.build());
+    }
+
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
@@ -85,6 +119,13 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         super.onCreate(savedInstanceState);
         Intent intent = getIntent();
         mMode = intent.getIntExtra("mode", 0);
+
+        // 카메라 권한 체크 및 요청 코드
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_DENIED) {
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
+        }
+
 
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -199,7 +240,7 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
     }
 
 
-    @Override
+    /*@Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Log.d(TAG, "onCameraFrame: Processing frame...");
         Mat rgbaMat = inputFrame.rgba();
@@ -207,7 +248,7 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         rgbaMat = new Mat(matAddr);
 
         return rgbaMat;
-    }
+    }*/
 
     //펄미션
     static final int PERMISSIONS_REQUEST_CODE = 1000;
@@ -223,6 +264,20 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         }
         return true;
     }
+    public void useCamera() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED) {
+            // 권한이 부여되지 않았을 경우
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
+        } else {
+            // 권한이 이미 부여된 경우, 카메라 기능을 사용합니다.
+            startCamera();
+        }
+    }
+    public void startCamera() {
+        // 카메라를 시작하는 코드
+    }
+
 
 
     @SuppressLint("SuspiciousIndentation")
@@ -242,6 +297,14 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
                     if (!cameraPermissionAccepted)
                         Log.e(TAG, "onRequestPermissionsResult: Camera permission denied.");
                     showDialogForPermission("앱을 실행하려면 퍼미션을 허가하셔야합니다.");
+                }
+                break;
+            case CAMERA_PERMISSION_CODE:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // 권한이 부여된 경우, 카메라 관련 작업을 계속합니다.
+                } else {
+                    // 권한이 거부된 경우, 사용자에게 알리거나 다른 작업을 수행합니다.
+                    Toast.makeText(this, "Camera permission is required to use this feature.", Toast.LENGTH_SHORT).show();
                 }
                 break;
         }
