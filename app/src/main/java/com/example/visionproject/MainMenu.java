@@ -9,17 +9,23 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.kakao.sdk.auth.model.OAuthToken;
 import com.kakao.sdk.user.UserApiClient;
 
 import kotlin.Unit;
 import kotlin.jvm.functions.Function2;
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class MainMenu extends AppCompatActivity {
 
@@ -30,9 +36,14 @@ public class MainMenu extends AppCompatActivity {
 
     }
 
+    UserRetrofitInterface userRetrofitInterface;
+    // 토큰 저장
+    String fcmtoken = "";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getFirebaseMessagingToken();
 
         //invoke
         setContentView(R.layout.activity_main);
@@ -70,6 +81,7 @@ public class MainMenu extends AppCompatActivity {
         testViewButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
+                sendPushNotification();
                 Intent intent = new Intent(MainMenu.this, TestActivity.class);
                 intent.putExtra("mode",3);
                 startActivity(intent);
@@ -187,4 +199,55 @@ public class MainMenu extends AppCompatActivity {
         });
         builder.create().show();
     }
+
+    // FCM토큰얻는 함수
+    private void getFirebaseMessagingToken() {
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        String token = task.getResult();
+                        Log.d("FCM Token", token);
+                        fcmtoken = token;
+                        // 여기서 얻은 토큰을 서버에 전송하거나 사용할 수 있습니다.
+                    } else {
+                        Log.e("FCM Token", "Token retrieval failed");
+                    }
+                });
+    }
+
+    // 서버에 메시지 형시을 보네는 함수
+    private void sendPushNotification() {
+        PushNotificationRequest request = new PushNotificationRequest();
+        request.setTargetToken(fcmtoken);
+        request.setTitle("Notification Title");
+        request.setBody("Notification Body");
+        request.setId("123");  // 예시로 임의의 ID 부여
+        request.setIsEnd("false");  // 예시로 "false" 부여
+
+        UserRetrofitInterface userRetrofitInterface = RetrofitClient.getInstance().create(UserRetrofitInterface.class);
+
+// Null 체크
+        if (userRetrofitInterface != null) {
+            // Retrofit 객체 사용 가능
+            Call<ResponseBody> call = userRetrofitInterface.sendPushNotification(request);
+
+            call.enqueue(new Callback<ResponseBody>() {
+                @Override
+                public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                    // 성공적으로 응답 받았을 때의 처리
+                    if (response.isSuccessful()) {
+                        Log.d("통신", "성공");
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<ResponseBody> call, Throwable t) {
+                    Log.e("통신", "실패");
+                }
+            });
+        } else {
+            Log.e("초기화", "Retrofit 객체 안됨");
+        }
+    }
+
 }

@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'com.google.gms.google-services'
 }
 
 android {
@@ -57,6 +58,12 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+
+    // 파일베이스
+    implementation 'com.google.firebase:firebase-messaging:23.3.1'
+    // 서버을위한거
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
 
     implementation "com.kakao.sdk:v2-all:2.18.0" // 전체 모듈 설치, 2.11.0 버전부터 지원
     implementation "com.kakao.sdk:v2-user:2.18.0" // 카카오 로그인
