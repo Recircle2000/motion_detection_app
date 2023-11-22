@@ -1,5 +1,6 @@
 package com.example.visionproject;
 
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
@@ -7,19 +8,23 @@ import android.graphics.Color;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.util.Log;
+
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
-public class MyFirebaseService extends FirebaseMessagingService {
+public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
         if (remoteMessage.getNotification() != null) {
+            Log.d("FCMExample", "Message Notification Body: " + remoteMessage.getNotification().getBody());
             // FCM에서 직접 전송된 알림
             sendNotification(remoteMessage.getNotification().getTitle(), remoteMessage.getNotification().getBody());
         } else if (remoteMessage.getData().size() > 0) {
+            Log.d("FCMExample", "Message data payload: " + remoteMessage.getData());
             // 다른 기기에서 FCM 서버로 전송된 데이터 메시지
             String title = remoteMessage.getData().get("title");
             String body = remoteMessage.getData().get("body");
@@ -28,6 +33,9 @@ public class MyFirebaseService extends FirebaseMessagingService {
     }
 
     private void sendNotification(String title, String body) {
+
+        Log.d("FCMExample", "sendNotification: title=" + title + ", body=" + body);
+
         Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
 
         NotificationCompat.Builder notificationBuilder =
