@@ -256,6 +256,8 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
 
         switch (action){
             case MotionEvent.ACTION_DOWN:
+                roi.width = 0;
+                roi.height = 0;
                 roi.x = (int)convertedPoint.x;
                 roi.y = (int)convertedPoint.y;
                 Log.d(TAG, "down" + roi.x + " " + roi.y + "");

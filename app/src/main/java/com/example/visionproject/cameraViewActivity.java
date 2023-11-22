@@ -11,6 +11,7 @@ import android.os.Bundle;
 import androidx.core.content.ContextCompat;
 
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
@@ -22,6 +23,8 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
@@ -39,7 +42,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-public class cameraViewActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
+public class cameraViewActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2, View.OnTouchListener{
     private static final String TAG = "AndroidOpenCv";
     private CameraBridgeViewBase mCameraView;
 
@@ -49,6 +52,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
 
     Queue<Mat> MatQueue2 = new LinkedList<>();
 
+    private Rect roi = new Rect(0,0,0,0); // roi 초기화
     Mat frame1 = new Mat();
     Mat frame2 = new Mat();
     Mat frame3 = new Mat();
@@ -121,7 +125,8 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         mCameraView.setVisibility(SurfaceView.VISIBLE);
         //mCameraView.setMaxFrameSize(1280, 720);
         mCameraView.setCvCameraViewListener(this);
-        mCameraView.setCameraIndex(0);
+        mCameraView.setOnTouchListener(this);
+        mCameraView.setCameraIndex(1);
         mCameraView.setCameraPermissionGranted();
 
         Button button = findViewById(R.id.button);
@@ -225,13 +230,28 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         rgbaMat = inputFrame.rgba();
+        Imgproc.cvtColor(rgbaMat, rgbaMat, COLOR_RGBA2GRAY);
+        MatQueue2 = processqueue(processRoi(rgbaMat));
         diff.release();
-        return processframe(rgbaMat);
+        return processRoi(rgbaMat);
     }
 
-    private Mat processframe(Mat inputFrame){
-        Imgproc.cvtColor(inputFrame, inputFrame, COLOR_RGBA2GRAY);
-        MatQueue2 = processqueue(inputFrame);
+    private Mat processRoi(Mat rgbaMat){
+        if (roi.x != 0 && roi.width > 0 && roi.height > 0){
+            Mat RoiImage = new Mat(rgbaMat, roi);
+            Core.bitwise_not(RoiImage, RoiImage);
+            Imgproc.rectangle(rgbaMat,roi, new Scalar(0,255,0),4);
+            Log.d(TAG, "컨버팅 Roi x: " + roi.x + ",y: " + roi.y + ",width: " + roi.width + ",height: " + roi.height );
+            return rgbaMat;
+        } else{
+            Log.d(TAG,"roi처리안됨");
+            return rgbaMat;
+        }
+    }
+
+
+    private Mat processframe(){
+
         Mat diff1 = new Mat();
         Mat diff2 = new Mat();
 
@@ -245,7 +265,9 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         Imgproc.threshold(diff1, diff1_t, thresh, 255, Imgproc.THRESH_BINARY);
         Imgproc.threshold(diff2, diff2_t, thresh, 255, Imgproc.THRESH_BINARY);
         Core.bitwise_and(diff1_t, diff2_t, diff);
-        Mat k = Imgproc.getStructuringElement(Imgproc.MORPH_CROSS, new Size(3, 3));
+        Size size = new Size(3,3);
+        Mat k;
+        k = Imgproc.getStructuringElement(Imgproc.MORPH_CROSS, size);
         Imgproc.morphologyEx(diff, diff, Imgproc.MORPH_OPEN, k);
 
         diff1.release();
@@ -279,6 +301,29 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         MatQueue2.offer(frame3);
 
         return MatQueue2;
+    }
+    @Override
+    public boolean onTouch(View view, MotionEvent motionEvent) {
+        int action = motionEvent.getAction();
+        float x = motionEvent.getX();
+        float y = motionEvent.getY();
+
+        switch (action){
+            case MotionEvent.ACTION_DOWN:
+                roi.width = 0;
+                roi.height = 0;
+                roi.x = (int)x;
+                roi.y = (int)y;
+                Log.d(TAG, "down" + roi.x + " " + roi.y + "");
+                break;
+            case MotionEvent.ACTION_MOVE:
+                roi.width = (int)x - roi.x;
+                roi.height = (int)y - roi.y;
+                break;
+            case MotionEvent.ACTION_UP:
+                break;
+        }
+        return true;
     }
 
     //펄미션
@@ -337,6 +382,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         });
         builder.create().show();
     }
+
 
 
 }
