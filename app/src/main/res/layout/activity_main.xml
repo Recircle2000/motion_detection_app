@@ -10,7 +10,7 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#E3F3FA"
+        android:background="#D3DADD"
         android:visibility="visible"
         tools:context=".MainMenu">
 
@@ -41,24 +41,28 @@
 
             <Button
                 android:id="@+id/Camera_View_Button"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:background="@drawable/rectangle"
                 android:contentDescription="카메라 화면보기 버튼"/>
 
 
+
+
+
             <Button
                 android:id="@+id/Safety_Area_Button"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_marginTop="180dp"
                 android:background="@drawable/rectangle"
                 android:contentDescription="안전구역 지정모드버튼"/>
 
             <Button
                 android:id="@+id/AllSafety_Button"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_marginTop="360dp"
                 android:text=" "
                 android:background="@drawable/rectangle"
@@ -74,15 +78,15 @@
 
             <TextView
                 android:id="@+id/Camera_View_Button_Text"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_marginLeft="10dp"
                 android:layout_marginTop="10dp"
                 android:text="카메라
                   화면보기"
                 android:textColor="#000000"
                 android:textIsSelectable="false"
-                android:textSize="25sp"
+                android:textSize="20sp"
                 android:textStyle="bold"
                 android:visibility="visible"
 
@@ -90,33 +94,66 @@
 
             <TextView
                 android:id="@+id/Safety_Area_Button_Text"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_marginLeft="10dp"
                 android:text="안전구역
                 지정모드"
                 android:textColor="#000000"
                 android:textIsSelectable="false"
-                android:textSize="25sp"
+                android:textSize="20sp"
                 android:textStyle="bold"
                 android:visibility="visible"
                 android:layout_marginTop="190dp"/>
 
             <TextView
                 android:id="@+id/AllSafety_Button_Text"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:text="전체구역
                 감지모드"
                 android:textColor="#000000"
                 android:textIsSelectable="false"
-                android:textSize="25sp"
+                android:textSize="20sp"
                 android:textStyle="bold"
                 android:visibility="visible"
                 android:layout_marginLeft="10dp"
                 android:layout_marginTop="370dp"/>
 
 
+
+        </RelativeLayout>
+        <RelativeLayout
+
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginStart="30dp"
+            android:layout_marginTop="180dp">
+
+            <ImageView
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_marginLeft="70dp"
+                android:layout_marginTop="70dp"
+                android:background="@drawable/viewmode">
+
+            </ImageView>
+            <ImageView
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_marginLeft="70dp"
+                android:layout_marginTop="250dp"
+                android:background="@drawable/safefyvision">
+
+            </ImageView>
+            <ImageView
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_marginLeft="70dp"
+                android:layout_marginTop="430dp"
+                android:background="@drawable/allsafe">
+
+            </ImageView>
 
         </RelativeLayout>
 
@@ -130,8 +167,8 @@
 
             <Button
                 android:id="@+id/CVtest_Button"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_alignParentEnd="true"
                 android:background="@drawable/rectangle"
                 android:contentDescription="테스트버튼"
@@ -139,8 +176,8 @@
 
             <Button
                 android:id="@+id/Option_button"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_alignParentEnd="true"
                 android:layout_marginTop="180dp"
                 android:background="@drawable/rectangle"
@@ -150,8 +187,8 @@
 
             <Button
                 android:id="@+id/Login_button"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_alignParentEnd="true"
                 android:layout_marginTop="360dp"
                 android:background="@drawable/rectangle"
@@ -172,47 +209,86 @@
 
             <TextView
                 android:id="@+id/CVtest_Button_Text"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_alignParentEnd="true"
                 android:layout_marginLeft="10dp"
                 android:layout_marginTop="10dp"
                 android:gravity="left"
                 android:text="테스트버튼"
                 android:textColor="#000000"
-                android:textSize="25sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/Option_button_Text"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_alignParentEnd="true"
                 android:layout_marginLeft="10dp"
                 android:layout_marginTop="190dp"
                 android:gravity="left"
                 android:text="환경설정"
                 android:textColor="#000000"
-                android:textSize="25sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
 
             <TextView
                 android:id="@+id/Login_button_Text"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_alignParentEnd="true"
                 android:layout_marginLeft="10dp"
                 android:layout_marginTop="370dp"
                 android:gravity="left"
                 android:text="로그인"
                 android:textColor="#000000"
-                android:textSize="25sp"
+                android:textSize="20sp"
                 android:textStyle="bold"
                 />
 
 
         </RelativeLayout>
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginTop="180dp"
+            android:layout_marginEnd="30dp"
+            android:visibility="visible">
+
+
+            <ImageView
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_marginRight="10dp"
+                android:layout_marginTop="70dp"
+                android:layout_alignParentEnd="true"
+                android:background="@drawable/test">
+
+            </ImageView>
+            <ImageView
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_marginRight="10dp"
+                android:layout_marginTop="250dp"
+                android:layout_alignParentEnd="true"
+                android:background="@drawable/setting">
+
+            </ImageView>
+            <ImageView
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_marginRight="10dp"
+                android:layout_marginTop="410dp"
+                android:layout_alignParentEnd="true"
+                android:background="@drawable/kakao">
+
+            </ImageView>
+
+
+        </RelativeLayout>
+
 
 
 
