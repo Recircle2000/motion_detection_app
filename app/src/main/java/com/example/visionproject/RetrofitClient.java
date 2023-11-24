@@ -11,8 +11,9 @@ public class RetrofitClient {
     private static RetrofitClient instance = null;
     private static UserRetrofitInterface userRetrofitInterface;
 
-    // 서버 주소 본인 ip를 적고 포트는 8080으로 적으면됨니다
-    private static String baseUrl = "http://172.30.1.48:8080";
+
+    //"http://15.164.87.220:8080" AWS 서버 주소이며 24시간 온라인
+    private static String baseUrl = "http://15.164.87.220:8080";
     private static Retrofit retrofit;
 
     private RetrofitClient() {

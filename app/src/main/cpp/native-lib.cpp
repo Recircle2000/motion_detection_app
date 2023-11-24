@@ -17,7 +17,7 @@ Java_com_example_visionproject_MainMenu_stringFromJNI(
 
 
 extern "C"
-JNIEXPORT jlongArray JNICALL
+JNIEXPORT jlong JNICALL
 Java_com_example_visionproject_AllSafetyVisionModeActivity_ConvertRGBtoGray(JNIEnv *env, jobject thiz,
                                                                    jlong mat_addr_input1,jlong mat_addr_input2,jlong mat_addr_input3) {
     //받아온 프레임3개를 각각 inputImage에 저장
@@ -45,7 +45,8 @@ Java_com_example_visionproject_AllSafetyVisionModeActivity_ConvertRGBtoGray(JNIE
     Mat k = getStructuringElement(MORPH_CROSS,Size(3,3));
     morphologyEx(diff, diff, MORPH_OPEN,k);
 
-    return (jlong)new cv::Mat(diff);
+    //return (jlong)new cv::Mat(diff);
+    return mat_addr_input1;
     // TODO: implement ConvertRGBtoGray()
 }
 

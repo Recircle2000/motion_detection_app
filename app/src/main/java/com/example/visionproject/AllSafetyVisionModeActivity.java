@@ -27,6 +27,7 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import android.annotation.TargetApi;
 import android.Manifest;
+import android.widget.Button;
 import android.widget.Toast;
 
 
@@ -41,19 +42,19 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
     private int mMode;
 
     // JNI 함수 선언
-    public native long[] ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
+    public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
 
     static {
         System.loadLibrary("opencv_java4");
         System.loadLibrary("native-lib");
     }
 
-    @Override
+   /* @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Log.d(TAG, "onCameraFrame: Processing frame...");
         Mat rgbaMat = inputFrame.rgba();
-        long[] result = ConvertRGBtoGray(rgbaMat.getNativeObjAddr(), rgbaMat.getNativeObjAddr(), rgbaMat.getNativeObjAddr());
-        Mat diffMat = new Mat(result[1]);
+        long result = ConvertRGBtoGray(rgbaMat.getNativeObjAddr(), rgbaMat.getNativeObjAddr(), rgbaMat.getNativeObjAddr());
+        Mat diffMat = new Mat(result[);
 
         // 움직임이 감지되면 알림 보내기
         if (result[0] == 1) {
@@ -61,7 +62,7 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         }
 
         return rgbaMat;
-    }
+    }*/
 
     // 알림 보내는 메서드
     private void sendNotification(String message) {
@@ -249,15 +250,15 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
     }
 
 
-    /*@Override
+    @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Log.d(TAG, "onCameraFrame: Processing frame...");
         Mat rgbaMat = inputFrame.rgba();
-        long matAddr = ConvertAllSafe(rgbaMat.getNativeObjAddr());
-        rgbaMat = new Mat(matAddr);
+       // long matAddr = ConvertRGBtoGray(rgbaMat.getNativeObjAddr());
+       // rgbaMat = new Mat(matAddr);
 
         return rgbaMat;
-    }*/
+    }
 
     //펄미션
     static final int PERMISSIONS_REQUEST_CODE = 1000;

@@ -19,7 +19,7 @@ public class TestActivity extends AppCompatActivity {
 
         TextView tv = binding.textTest;
         //tv.setText(stringFromJNI());
-        tv.setText("테스트 페이지");
+        tv.setText("알림 테스트. 가끔 서버 반응이 느릴때가 있습니다. 여러번 들락날락 하다보면 알림이 와요.");
     }
 }
 

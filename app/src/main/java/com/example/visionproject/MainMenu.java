@@ -225,8 +225,8 @@ public class MainMenu extends AppCompatActivity {
     private void sendPushNotification() {
         PushNotificationRequest request = new PushNotificationRequest();
         request.setTargetToken(fcmtoken);
-        request.setTitle("Notification Title");
-        request.setBody("Notification Body");
+        request.setTitle("테스트 제목");
+        request.setBody("정상 수신됨");
         request.setId("123");  // 예시로 임의의 ID 부여
         request.setIsEnd("false");  // 예시로 "false" 부여
 

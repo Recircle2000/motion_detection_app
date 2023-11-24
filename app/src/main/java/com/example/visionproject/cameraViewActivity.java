@@ -11,9 +11,13 @@ import android.os.Bundle;
 import androidx.core.content.ContextCompat;
 
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.Switch;
+import android.widget.Toast;
 
 
 import org.opencv.android.BaseLoaderCallback;
@@ -22,10 +26,16 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Point;
+import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 
+import static org.opencv.core.CvType.CV_32FC2;
 import static org.opencv.imgproc.Imgproc.COLOR_RGBA2GRAY;
 import static org.opencv.imgproc.Imgproc.rectangle;
 
@@ -34,30 +44,37 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-public class cameraViewActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
+public class cameraViewActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2,View.OnTouchListener {
     private static final String TAG = "AndroidOpenCv";
     private CameraBridgeViewBase mCameraView;
-
-    private Mat mInputMat;
-    private Mat mResultMat;
-    private int mMode;
-
+    private boolean detect = false;
+    private boolean start = true;
+    boolean istogle = false;
     Queue<Mat> MatQueue2 = new LinkedList<>();
-
-    Mat frame1 = new Mat();
-    Mat frame2 = new Mat();
-    Mat frame3 = new Mat();
+    Mat[] frames = new Mat[3];
+    Mat removeMat = new Mat();
     Mat diff = new Mat();
-
+    private Rect Uroi = new Rect(0,0,0,0);
+    Mat roiMat = new Mat();
+    List<MatOfPoint> contours = new ArrayList<>();
+    Mat hierarchy = new Mat();
+    Mat motionMat = new Mat();
     Mat rgbaMat = new Mat();
+    Mat displayMat = new Mat();
+    Mat black = new Mat();
+    
 
 
-    public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
+
+
+
+   // public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
 
     static {
         System.loadLibrary("opencv_java4");
@@ -104,7 +121,6 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
 
         super.onCreate(savedInstanceState);
         Intent intent = getIntent();
-        mMode = intent.getIntExtra("mode", 0);
 
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -123,12 +139,38 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         mCameraView.setCvCameraViewListener(this);
         mCameraView.setCameraIndex(0);
         mCameraView.setCameraPermissionGranted();
+        mCameraView.setOnTouchListener(this);
 
         Button button = findViewById(R.id.button);
+        Button initROIButton2 = findViewById(R.id.init_ROI2);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 finish();
+            }
+        });
+
+        Switch switch2 = findViewById(R.id.switch2);
+
+        switch2.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+
+                if (isChecked) {
+                    istogle = true;
+                } else {
+                    istogle = false;
+                }
+            }
+        });
+
+        initROIButton2.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View view) {
+                Uroi.x = 0;
+                Uroi.y = 0;
+                Uroi.width = 0;
+                Uroi.height = 0;
             }
         });
 
@@ -221,64 +263,126 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         Log.d(TAG, "카메라 뷰 정지");
     }
 
-
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+        rgbaMat.release();
+        displayMat.release();
+        //원본 : rgbaMat, Roi그린거 : roiMat, 움직임 감지 : motionMat
         rgbaMat = inputFrame.rgba();
-        diff.release();
-        return processframe(rgbaMat);
+        displayMat = rgbaMat.clone();
+        processDetect(rgbaMat);
+        userDrawRoi(rgbaMat);
+        drawroi();
+
+        int diff_cnt = Core.countNonZero(motionMat);
+        Log.d(TAG, "diff_cnt : " + diff_cnt);
+        if (istogle) //토글에 따라 모드가 바뀜
+            return motionMat; // 흑백 감지표시
+        else return displayMat; // 감지 영역표시
     }
 
-    private Mat processframe(Mat inputFrame){
-        Imgproc.cvtColor(inputFrame, inputFrame, COLOR_RGBA2GRAY);
-        MatQueue2 = processqueue(inputFrame);
+    private boolean isdetected(Mat inputMat) {
+        if (detect == true) {
+            //sendPushNotification();
+        }
+        return true;
+    }
+
+    private void userDrawRoi(Mat rgbaMat) {
+        roiMat.release();
+        roiMat = rgbaMat.clone();
+        if (Uroi.x != 0 && Uroi.y != 0 && Uroi.width > 0 && Uroi.height > 0) {
+            Imgproc.rectangle(roiMat, Uroi, new Scalar(0, 255, 255), 4);
+            roiMat.copyTo(displayMat);
+            //rgbaMat.release();
+        } else {
+            roiMat.copyTo(displayMat);
+            //rgbaMat.release();
+        }
+
+    }
+    private void processDetect(Mat inputColor) {
+        black.release();
+        Mat black = inputColor.clone();
+        Imgproc.cvtColor(inputColor, black, COLOR_RGBA2GRAY);
+        if (start) {
+            start = false;
+            // 큐가 비어있으면 같은 프레임3개를 일단 채움.
+            // 얕은 복사로 인해 같은 주소를 참조하는 3개의 객체가 같이 삭제되는 현상을 방지하기 위해 최초 2개 프레임만 깊은복사.
+            Log.d(TAG, "프레임 3개 채움");
+            MatQueue2.offer(black.clone());
+            MatQueue2.offer(black.clone());
+            MatQueue2.offer(black);
+        } else { //가장 오래된 프레임을 꺼내 메모지 해제 후 최근 프레임을 끼워넣어줌.
+            removeMat = MatQueue2.remove();
+            removeMat.release();
+            MatQueue2.offer(black);
+        }
+        //각 프레임을 꺼내 배열에 임시 저장.
+        frames[0] = MatQueue2.poll();
+        frames[1] = MatQueue2.poll();
+        frames[2] = MatQueue2.poll();
+
+
+        //----------------여기부터 움직임 감지 알고리즘
         Mat diff1 = new Mat();
         Mat diff2 = new Mat();
+        //각 프레임의 차이를 비교
+        Core.absdiff(frames[0], frames[1], diff1);
+        Core.absdiff(frames[1], frames[2], diff2);
 
-        Core.absdiff(frame1, frame2, diff1);
-        Core.absdiff(frame2, frame3, diff2);
+        //배열 객체들을 모두 사용하였으므로 다시 큐에 저장.
+        for (Mat frame : frames) {
+            MatQueue2.offer(frame);
+        }
 
-        double thresh = 30;
+        double thresh = 11;
         Mat diff1_t = new Mat();
         Mat diff2_t = new Mat();
 
+        //이진화
         Imgproc.threshold(diff1, diff1_t, thresh, 255, Imgproc.THRESH_BINARY);
         Imgproc.threshold(diff2, diff2_t, thresh, 255, Imgproc.THRESH_BINARY);
+        //이진화 한 결과물2개를 논리연산하여 두개의 결과가 모두 감지되었을 경우에만 표시
         Core.bitwise_and(diff1_t, diff2_t, diff);
-        Mat k = Imgproc.getStructuringElement(Imgproc.MORPH_CROSS, new Size(3, 3));
-        Imgproc.morphologyEx(diff, diff, Imgproc.MORPH_OPEN, k);
 
+        //커널 생성
+        Mat k = Imgproc.getStructuringElement(Imgproc.MORPH_CROSS, new Size(10, 10));
+        //morphology연산, 침식으로 작은 노이즈 제거 후 확장
+        Imgproc.morphologyEx(diff, diff, Imgproc.MORPH_OPEN, k);
+        diff.copyTo(motionMat);
+
+        //램 점유 해제
+        hierarchy.release();
+        diff.release();
         diff1.release();
         diff2.release();
         diff1_t.release();
         diff2_t.release();
         k.release();
-// 폭과 높이를 각각 얻기
-        Log.d(TAG, "onCameraFrame: Processing frame...");
-        //움직임 감지 연산을 위해 프레임 3개를 한번에 보냄.
-        //rgbaMat = new Mat(ConvertRGBtoGray(frame1.getNativeObjAddr(), frame2.getNativeObjAddr(), frame3.getNativeObjAddr()));
-        //출력
-        return diff;
     }
-    private Queue<Mat> processqueue(Mat input) {
+    private void drawroi(){
+        /*contours.clear();
+        Imgproc.findContours(motionMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
-        if (MatQueue2.isEmpty()) { // 큐가 비어있으면 같은 프레임3개를 일단 채움.
-            MatQueue2.offer(input);
-            MatQueue2.offer(input);
-            MatQueue2.offer(input);
-        } else { // 아니면 앞에있는 프레임1개를 빼고 뒤에다가 프레임을 채움.
-            MatQueue2.remove();
-            MatQueue2.offer(input);
+        for (int i = 0; i < contours.size(); i++) {
+            Rect boundingRect = Imgproc.boundingRect(contours.get(i));
+            Imgproc.rectangle(rgbaMat, boundingRect.tl(), boundingRect.br(), new Scalar(0, 255, 0), 2);
+            Log.d(TAG, "그린 후 rgba" + rgbaMat);
+        }*/
+        //문제점. 감지하는 사각형이 그려질수록 램이 늘어나고 빠지지않음.
+        contours.clear();
+        Imgproc.findContours(motionMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+            //contours를 기준으로 사각형을 그립니다.
+        for (MatOfPoint contour : contours) {
+            //contour의 꼭짓점들을 찾습니다.
+            MatOfPoint2f points = new MatOfPoint2f();
+            contour.convertTo(points, CV_32FC2);
+            //꼭짓점들을 기준으로 사각형을 그립니다.
+            Rect rect = Imgproc.boundingRect(points);
+            Imgproc.rectangle(displayMat, rect, new Scalar(0, 0, 255), 2);
         }
-        frame1 = MatQueue2.poll();
-        frame2 = MatQueue2.poll();
-        frame3 = MatQueue2.poll();
 
-        MatQueue2.offer(frame1); // 비워진 큐를 다시 순서대로 채워넣음.
-        MatQueue2.offer(frame2);
-        MatQueue2.offer(frame3);
-
-        return MatQueue2;
     }
 
     //펄미션
@@ -339,4 +443,25 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     }
 
 
+    @Override
+    public boolean onTouch(View view, MotionEvent motionEvent) {
+        int action = motionEvent.getAction();
+        float x = motionEvent.getX();
+        float y = motionEvent.getY();
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                Uroi.width = 0;
+                Uroi.height = 0;
+                Uroi.x = (int)x;
+                Uroi.y = (int)y;
+                break;
+            case MotionEvent.ACTION_MOVE:
+                Uroi.width = (int)x - Uroi.x;
+                Uroi.height = (int)y - Uroi.y;
+            case MotionEvent.ACTION_UP:
+                break;
+        }
+        return true;
+    }
 }

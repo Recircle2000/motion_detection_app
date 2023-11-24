@@ -25,7 +25,7 @@
                 android:id="@+id/sample_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="임시 메인페이지"
+                android:text="안전 카메라"
                 android:textColor="#000000"
                 android:textSize="20sp"
                 android:visibility="visible" />
@@ -215,7 +215,7 @@
                 android:layout_marginLeft="10dp"
                 android:layout_marginTop="10dp"
                 android:gravity="left"
-                android:text="테스트버튼"
+                android:text="푸시알림 테스트"
                 android:textColor="#000000"
                 android:textSize="20sp"
                 android:textStyle="bold" />
