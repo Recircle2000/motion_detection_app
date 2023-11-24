@@ -45,13 +45,7 @@ Java_com_example_visionproject_AllSafetyVisionModeActivity_ConvertRGBtoGray(JNIE
     Mat k = getStructuringElement(MORPH_CROSS,Size(3,3));
     morphologyEx(diff, diff, MORPH_OPEN,k);
 
-    jlongArray result = env->NewLongArray(2);
-    jlong temp[2] = {1, (jlong)new cv::Mat(diff)};
-    env->SetLongArrayRegion(result, 0, 2, temp);
-
-    return result;
-
-    //return (jlong)new cv::Mat(diff);
+    return (jlong)new cv::Mat(diff);
     // TODO: implement ConvertRGBtoGray()
 }
 

@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.Bundle;
 
 import androidx.core.content.ContextCompat;
+
 import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
@@ -19,7 +20,9 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 
@@ -44,9 +47,14 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     private Mat mResultMat;
     private int mMode;
 
+    Queue<Mat> MatQueue2 = new LinkedList<>();
 
+    Mat frame1 = new Mat();
+    Mat frame2 = new Mat();
+    Mat frame3 = new Mat();
+    Mat diff = new Mat();
 
-
+    Mat rgbaMat = new Mat();
 
 
     public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
@@ -109,7 +117,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
             }
         }
 
-        mCameraView = (CameraBridgeViewBase)findViewById(R.id.activity_surface_view);
+        mCameraView = (CameraBridgeViewBase) findViewById(R.id.activity_surface_view);
         mCameraView.setVisibility(SurfaceView.VISIBLE);
         //mCameraView.setMaxFrameSize(1280, 720);
         mCameraView.setCvCameraViewListener(this);
@@ -120,8 +128,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(getApplicationContext(),MainMenu.class);
-                startActivity(intent);
+                finish();
             }
         });
 
@@ -133,24 +140,25 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     protected void onStart() {
         super.onStart();
         boolean _Permission = true; //변수 추가
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){//최소 버전보다 버전이 높은지 확인
-            if(checkSelfPermission(CAMERA_SERVICE) != PackageManager.PERMISSION_GRANTED) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {//최소 버전보다 버전이 높은지 확인
+            if (checkSelfPermission(CAMERA_SERVICE) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{CAMERA_SERVICE}, CAMERA_PERMISSION_CODE);
                 _Permission = false;
             }
         }
-        if(_Permission){
+        if (_Permission) {
             onCameraPermissionGranted();
 
 
         }
     }
+
     protected void onCameraPermissionGranted() {
         List<? extends CameraBridgeViewBase> cameraViews = getCameraViewList();
         if (cameraViews == null) {
             return;
         }
-        for (CameraBridgeViewBase cameraBridgeViewBase: cameraViews) {
+        for (CameraBridgeViewBase cameraBridgeViewBase : cameraViews) {
             if (cameraBridgeViewBase != null) {
                 cameraBridgeViewBase.setCameraPermissionGranted();
             }
@@ -160,8 +168,6 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     protected List<? extends CameraBridgeViewBase> getCameraViewList() {
         return Collections.singletonList(mCameraView);
     }
-
-
 
 
     @Override
@@ -183,20 +189,15 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         }
     }
 
-    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+    private final BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
-            switch (status) {
-                case LoaderCallbackInterface.SUCCESS: {
-                    Log.d(TAG, "정상");
-                    mCameraView.enableView();
-                }
-                break;
-                default: {
-                    Log.d(TAG, "에러");
-                    super.onManagerConnected(status);
-                }
-                break;
+            if (status == LoaderCallbackInterface.SUCCESS) {
+                Log.d(TAG, "정상");
+                mCameraView.enableView();
+            } else {
+                Log.d(TAG, "에러");
+                super.onManagerConnected(status);
             }
         }
     };
@@ -220,33 +221,64 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         Log.d(TAG, "카메라 뷰 정지");
     }
 
-    Queue<Mat> MatQueue2 = new LinkedList<>();
+
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        Mat rgbaMat = inputFrame.rgba();
-        Imgproc.cvtColor(rgbaMat,rgbaMat,COLOR_RGBA2GRAY);
+        rgbaMat = inputFrame.rgba();
+        diff.release();
+        return processframe(rgbaMat);
+    }
+
+    private Mat processframe(Mat inputFrame){
+        Imgproc.cvtColor(inputFrame, inputFrame, COLOR_RGBA2GRAY);
+        MatQueue2 = processqueue(inputFrame);
+        Mat diff1 = new Mat();
+        Mat diff2 = new Mat();
+
+        Core.absdiff(frame1, frame2, diff1);
+        Core.absdiff(frame2, frame3, diff2);
+
+        double thresh = 30;
+        Mat diff1_t = new Mat();
+        Mat diff2_t = new Mat();
+
+        Imgproc.threshold(diff1, diff1_t, thresh, 255, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(diff2, diff2_t, thresh, 255, Imgproc.THRESH_BINARY);
+        Core.bitwise_and(diff1_t, diff2_t, diff);
+        Mat k = Imgproc.getStructuringElement(Imgproc.MORPH_CROSS, new Size(3, 3));
+        Imgproc.morphologyEx(diff, diff, Imgproc.MORPH_OPEN, k);
+
+        diff1.release();
+        diff2.release();
+        diff1_t.release();
+        diff2_t.release();
+        k.release();
 // 폭과 높이를 각각 얻기
+        Log.d(TAG, "onCameraFrame: Processing frame...");
+        //움직임 감지 연산을 위해 프레임 3개를 한번에 보냄.
+        //rgbaMat = new Mat(ConvertRGBtoGray(frame1.getNativeObjAddr(), frame2.getNativeObjAddr(), frame3.getNativeObjAddr()));
+        //출력
+        return diff;
+    }
+    private Queue<Mat> processqueue(Mat input) {
+
         if (MatQueue2.isEmpty()) { // 큐가 비어있으면 같은 프레임3개를 일단 채움.
-            MatQueue2.offer(rgbaMat);
-            MatQueue2.offer(rgbaMat);
-            MatQueue2.offer(rgbaMat);
+            MatQueue2.offer(input);
+            MatQueue2.offer(input);
+            MatQueue2.offer(input);
         } else { // 아니면 앞에있는 프레임1개를 빼고 뒤에다가 프레임을 채움.
             MatQueue2.remove();
-            MatQueue2.offer(rgbaMat);
+            MatQueue2.offer(input);
         }
-        Mat frame1 = MatQueue2.poll(); //맨 앞에있는 프레임을 각각 Mat 클래스에다가 저장
-        Mat frame2 = MatQueue2.poll();
-        Mat frame3 = MatQueue2.poll();
+        frame1 = MatQueue2.poll();
+        frame2 = MatQueue2.poll();
+        frame3 = MatQueue2.poll();
 
         MatQueue2.offer(frame1); // 비워진 큐를 다시 순서대로 채워넣음.
         MatQueue2.offer(frame2);
         MatQueue2.offer(frame3);
-        Log.d(TAG, "onCameraFrame: Processing frame...");
-        //움직임 감지 연산을 위해 프레임 3개를 한번에 보냄.
-        long matAddr = ConvertRGBtoGray(frame1.getNativeObjAddr(),frame2.getNativeObjAddr(),frame3.getNativeObjAddr());
-        rgbaMat = new Mat(matAddr);
-        //출력
-        return rgbaMat;
+
+        return MatQueue2;
     }
 
     //펄미션
@@ -273,17 +305,15 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
 
         Log.d(TAG, "onRequestPermissionsResult: Permission request result received.");
 
-        switch (requestCode) {
-            case PERMISSIONS_REQUEST_CODE:
-                if (grantResults.length > 0) {
-                    boolean cameraPermissionAccepted = grantResults[0]
-                            == PackageManager.PERMISSION_GRANTED;
+        if (requestCode == PERMISSIONS_REQUEST_CODE) {
+            if (grantResults.length > 0) {
+                boolean cameraPermissionAccepted = grantResults[0]
+                        == PackageManager.PERMISSION_GRANTED;
 
-                    if (!cameraPermissionAccepted)
-                        Log.e(TAG, "onRequestPermissionsResult: Camera permission denied.");
-                        showDialogForPermission("앱을 실행하려면 퍼미션을 허가하셔야합니다.");
-                }
-                break;
+                if (!cameraPermissionAccepted)
+                    Log.e(TAG, "onRequestPermissionsResult: Camera permission denied.");
+                showDialogForPermission("앱을 실행하려면 퍼미션을 허가하셔야합니다.");
+            }
         }
     }
 

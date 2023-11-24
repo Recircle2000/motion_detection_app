@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat;
 import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
+
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
@@ -144,6 +145,14 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         AllSafeCameraView.setCvCameraViewListener(this);
         AllSafeCameraView.setCameraIndex(0);
         AllSafeCameraView.setCameraPermissionGranted();
+
+        Button button = findViewById(R.id.button);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                finish();
+            }
+        });
     }
 
     private static final int CAMERA_PERMISSION_CODE = 200;
