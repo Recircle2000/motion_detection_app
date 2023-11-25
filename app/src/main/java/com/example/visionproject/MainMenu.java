@@ -69,7 +69,7 @@ public class MainMenu extends AppCompatActivity {
         cameraViewButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(MainMenu.this, cameraViewActivity.class);
+                Intent intent = new Intent(MainMenu.this, AllSafetyVisionModeActivity.class);
                 intent.putExtra("mode",0);
                 startActivity(intent);
             }
@@ -112,35 +112,9 @@ public class MainMenu extends AppCompatActivity {
             }
         });
 
-        Function2<OAuthToken, Throwable, Unit> callback = new Function2<OAuthToken, Throwable, Unit>() {
-            @Override
-            public Unit invoke(OAuthToken oAuthToken, Throwable throwable) {
-                if (oAuthToken != null)
-                {
 
-                }
-                if (throwable != null)
-                {
 
-                }
-                return null;
-            }
-        };
 
-        //로그인 연동 코드
-        LoginButton.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View view) {
-                if(UserApiClient.getInstance().isKakaoTalkLoginAvailable(MainMenu.this))
-                {
-                    UserApiClient.getInstance().loginWithKakaoTalk(MainMenu.this, callback);
-                }
-                else
-                {
-                    UserApiClient.getInstance().loginWithKakaoAccount(MainMenu.this, callback);
-                }
-            }
-        });
 
         // Example of a call to a native method
 

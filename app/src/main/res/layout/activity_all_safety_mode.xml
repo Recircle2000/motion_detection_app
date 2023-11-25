@@ -41,6 +41,23 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
+        <Switch
+            android:id="@+id/switch2"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="10dp"
+            android:layout_toLeftOf="@id/button" />
+
+        <TextView
+            android:id="@+id/motionDetectionTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_centerHorizontal="true"
+            android:text=""
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
         <Button
             android:id="@+id/button"
             android:layout_width="wrap_content"

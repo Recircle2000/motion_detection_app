@@ -54,8 +54,9 @@ import java.util.Queue;
 public class cameraViewActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2, View.OnTouchListener {
     private static final String TAG = "AndroidOpenCv";
     private CameraBridgeViewBase mCameraView;
-    private boolean detect = false;
+    private boolean detect = true;
     private boolean start = true;
+    private boolean trigger = true;
     boolean istogle = false;
     Queue<Mat> MatQueue2 = new LinkedList<>();
     Mat[] frames = new Mat[3];
@@ -69,7 +70,6 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     Mat rgbaMat = new Mat();
     Mat displayMat = new Mat();
     Mat black = new Mat();
-
 
     // public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
 
@@ -134,7 +134,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         mCameraView.setVisibility(SurfaceView.VISIBLE);
         //mCameraView.setMaxFrameSize(1280, 720);
         mCameraView.setCvCameraViewListener(this);
-        mCameraView.setCameraIndex(1);
+        mCameraView.setCameraIndex(0);
         mCameraView.setCameraPermissionGranted();
         mCameraView.setOnTouchListener(this);
 
@@ -272,17 +272,10 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         drawroi();
 
         int diff_cnt = Core.countNonZero(motionMat);
-        Log.d(TAG, "diff_cnt : " + diff_cnt);
+        //Log.d(TAG, "diff_cnt : " + diff_cnt);
         if (istogle) //토글에 따라 모드가 바뀜
             return motionMat; // 흑백 감지표시
         else return displayMat; // 감지 영역표시
-    }
-
-    private boolean isdetected(Mat inputMat) {
-        if (detect == true) {
-            //sendPushNotification();
-        }
-        return true;
     }
 
     private void userDrawRoi(Mat rgbaMat) {
@@ -368,7 +361,10 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         kernelErode.release();
         kernelDilate.release();
     }
-
+    long detectionStartTime = 0;
+    long detectionDurationThreshold = 3000;
+    long lastDetectionTime = 0;
+    long noDetectionCooldown = 5000;
     private void drawroi() {
         //초기화
         contours.clear();
@@ -393,11 +389,37 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         //주변 사각형 병합
         List<Rect> finalRectangles = mergeAdjacentRectangles(mergedRectangles, 600);
 
-        //출력
+
         for (Rect rect : finalRectangles) {
+            if (rect.area() > 50000) { // 제일 큰 사각형의 넓이가 50000 이상일 경우 트리거.
+                long currentTime = System.currentTimeMillis();
+                //반복 실행 방지. 감지된 객체가 사라져야 다시 활성화
+                if (detect) {
+                    // 움직임이 처음 감지된 경우
+                    detect = false;
+                    detectionStartTime = currentTime;
+
+                    Log.d(TAG, "Motion detected!");
+                }
+                lastDetectionTime = currentTime;
+                if (trigger && currentTime - detectionStartTime > detectionDurationThreshold) {
+                    // 움직임이 지속되고, 지정된 지속 시간 이상일 경우 트리거
+                    trigger = false;
+                    Log.d(TAG, "Triggered!!");
+                    lastDetectionTime = currentTime;
+
+                }
+            }
+            //출력
             Imgproc.rectangle(displayMat, rect.tl(), rect.br(), new Scalar(0, 0, 255), 2);
         }
-
+        long currentTime = System.currentTimeMillis();
+        //사각형 영역이 비었고, 5초가 지났을 때에만 트리거 재설정.
+        if (finalRectangles.isEmpty() && currentTime - lastDetectionTime > noDetectionCooldown) {
+            // 아무 것도 감지되지 않았을 때 trigger 재설정
+            detect  = true;
+            trigger = true;
+        }
     }
     //인접한 사각형 병합 구현
     private static List<Rect> mergeAdjacentRectangles(List<Rect> rects, double maxDistance) {

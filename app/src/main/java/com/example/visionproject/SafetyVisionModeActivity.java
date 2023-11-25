@@ -5,27 +5,30 @@ import android.annotation.TargetApi;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.PointF;
-import android.graphics.RectF;
-import android.hardware.Camera;
 import android.os.Build;
 import android.os.Bundle;
 
 import androidx.core.content.ContextCompat;
 
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.Switch;
 import android.widget.Toast;
+
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.MatOfRect;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
@@ -33,6 +36,8 @@ import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 
+import static org.opencv.core.CvType.CV_32FC2;
+import static org.opencv.imgproc.Imgproc.COLOR_RGBA2GRAY;
 import static org.opencv.imgproc.Imgproc.rectangle;
 
 
@@ -40,22 +45,33 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 public class SafetyVisionModeActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2, View.OnTouchListener {
     private static final String TAG = "AndroidOpenCv";
-    private CameraBridgeViewBase SafeCameraView;
-    private Scalar rectColor;
-    private Rect roi = new Rect(0,0,0,0); // roi 초기화
-    private static final float ASPECT_RATIO_16_9 = 16.0f / 9.0f; // 터치 영역 좌표 차이로 인한 변환 사전 준비
-    private RectF rect16x9; // 16:9 영역을 나타내는 사각형
+    private CameraBridgeViewBase mCameraView;
+    private boolean detect = true;
+    private boolean start = true;
+    private boolean trigger = true;
+    boolean istogle = false;
+    Queue<Mat> MatQueue2 = new LinkedList<>();
+    Mat[] frames = new Mat[3];
+    Mat removeMat = new Mat();
+    Mat diff = new Mat();
+    private Rect Uroi = new Rect(0, 0, 0, 0);
+    Mat roiMat = new Mat();
+    List<MatOfPoint> contours = new ArrayList<>();
+    Mat hierarchy = new Mat();
+    Mat motionMat = new Mat();
+    Mat rgbaMat = new Mat();
+    Mat displayMat = new Mat();
+    Mat black = new Mat();
 
-
-
-    public native long ConvertSafe(long matAddrInput,int x, int y, int width, int height);
-
-    public native long DrawROI(long matAddrInput,int x, int y, int width, int height);
+    // public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
 
     static {
         System.loadLibrary("opencv_java4");
@@ -101,44 +117,60 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
+        Intent intent = getIntent();
 
+        //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        //getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         Log.d(TAG, "onCreate: Starting cameraViewActivity");
         setContentView(R.layout.activity_safety_mode);
-        rect16x9 = calculate16x9Rect();
-
-        Button initROIButton = findViewById(R.id.init_ROI);
-        initROIButton.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View view) {
-                roi.x = 0;
-                roi.y = 0;
-                roi.width = 0;
-                roi.height = 0;
-            }
-        });
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!hasPermissions(PERMISSIONS)) {
                 requestPermissions(PERMISSIONS, PERMISSIONS_REQUEST_CODE);
             }
         }
-        SafeCameraView = (CameraBridgeViewBase)findViewById(R.id.activity_safe_view);
-        SafeCameraView.setVisibility(SurfaceView.VISIBLE);
-        //SafeCameraView.setMaxFrameSize(displayMetrics.widthPixels,displayMetrics.heightPixels);
-        SafeCameraView.setCvCameraViewListener(this);
-        //SafeCameraView.setMaxFrameSize(1920, 1080);
-        SafeCameraView.setCameraIndex(0);
-        SafeCameraView.setOnTouchListener(this);
-        SafeCameraView.setCameraPermissionGranted();
-        Toast.makeText(getApplicationContext(), "위험 구역을 드래그 하여 지정해주세요! ",Toast.LENGTH_LONG).show();
-        rectColor = new Scalar(255,0,0,255);
+
+        mCameraView = (CameraBridgeViewBase) findViewById(R.id.activity_safe_view);
+        mCameraView.setVisibility(SurfaceView.VISIBLE);
+        //mCameraView.setMaxFrameSize(1280, 720);
+        mCameraView.setCvCameraViewListener(this);
+        mCameraView.setCameraIndex(0);
+        mCameraView.setCameraPermissionGranted();
+        mCameraView.setOnTouchListener(this);
+
         Button button = findViewById(R.id.button);
+        Button initROIButton2 = findViewById(R.id.init_ROI2);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 finish();
             }
         });
+
+        Switch switch2 = findViewById(R.id.switch2);
+
+        switch2.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+
+                if (isChecked) {
+                    istogle = true;
+                } else {
+                    istogle = false;
+                }
+            }
+        });
+
+        initROIButton2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Uroi.x = 0;
+                Uroi.y = 0;
+                Uroi.width = 0;
+                Uroi.height = 0;
+            }
+        });
+
     }
 
     private static final int CAMERA_PERMISSION_CODE = 200;
@@ -146,31 +178,42 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
     @Override
     protected void onStart() {
         super.onStart();
-
         boolean _Permission = true; //변수 추가
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){//최소 버전보다 버전이 높은지 확인
-            if(checkSelfPermission(CAMERA_SERVICE) != PackageManager.PERMISSION_GRANTED) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {//최소 버전보다 버전이 높은지 확인
+            if (checkSelfPermission(CAMERA_SERVICE) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{CAMERA_SERVICE}, CAMERA_PERMISSION_CODE);
                 _Permission = false;
             }
         }
-        if(_Permission){
+        if (_Permission) {
             onCameraPermissionGranted();
 
 
         }
     }
 
+    protected void onCameraPermissionGranted() {
+        List<? extends CameraBridgeViewBase> cameraViews = getCameraViewList();
+        if (cameraViews == null) {
+            return;
+        }
+        for (CameraBridgeViewBase cameraBridgeViewBase : cameraViews) {
+            if (cameraBridgeViewBase != null) {
+                cameraBridgeViewBase.setCameraPermissionGranted();
+            }
+        }
+    }
 
     protected List<? extends CameraBridgeViewBase> getCameraViewList() {
-        return Collections.singletonList(SafeCameraView);
+        return Collections.singletonList(mCameraView);
     }
+
 
     @Override
     public void onPause() {
         super.onPause();
-        if (SafeCameraView != null)
-            SafeCameraView.disableView();
+        if (mCameraView != null)
+            mCameraView.disableView();
     }
 
     @Override
@@ -185,20 +228,15 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         }
     }
 
-    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+    private final BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
-            switch (status) {
-                case LoaderCallbackInterface.SUCCESS: {
-                    Log.d(TAG, "정상");
-                    SafeCameraView.enableView();
-                }
-                break;
-                default: {
-                    Log.d(TAG, "에러");
-                    super.onManagerConnected(status);
-                }
-                break;
+            if (status == LoaderCallbackInterface.SUCCESS) {
+                Log.d(TAG, "정상");
+                mCameraView.enableView();
+            } else {
+                Log.d(TAG, "에러");
+                super.onManagerConnected(status);
             }
         }
     };
@@ -207,15 +245,14 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
     public void onDestroy() {
         super.onDestroy();
 
-        if (SafeCameraView != null) {
-            SafeCameraView.disableView();
+        if (mCameraView != null) {
+            mCameraView.disableView();
         }
     }
 
     @Override
     public void onCameraViewStarted(int width, int height) {
         Log.d(TAG, "onCameraViewStarted: Camera dimensions - Width: " + width + ", Height: " + height);
-
     }
 
     @Override
@@ -223,95 +260,245 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         Log.d(TAG, "카메라 뷰 정지");
     }
 
-
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+        rgbaMat.release();
+        displayMat.release();
+        //원본 : rgbaMat, Roi그린거 : roiMat, 움직임 감지 : motionMat
+        rgbaMat = inputFrame.rgba();
+        displayMat = rgbaMat.clone();
+        processDetect(rgbaMat);
+        userDrawRoi(rgbaMat);
+        drawroi();
 
-        //Log.d(TAG, "onCameraFrame: Processing frame...");
-        Mat rgbaMat = inputFrame.rgba();
-        long matAddr;
-        long matROI;
-        if (roi.height != 0 && roi.width > 0 && roi.height > 0) { //roi 지정이 되었을경우.
-            matAddr = DrawROI(rgbaMat.getNativeObjAddr(),roi.x, roi.y, roi.width, roi.height); // 원본 영상에 ROI 사각형 그리기
-            rgbaMat = new Mat(matAddr);
-            Mat test1 = rgbaMat;
-            matROI = ConvertSafe(rgbaMat.getNativeObjAddr(),roi.x, roi.y, roi.width, roi.height); // roi영역 자르고 움직임 감지
-            Log.d(TAG, "컨버팅 Roi x: " + roi.x + ",y: " + roi.y + ",width: " + roi.width + ",height: " + roi.height );
-            rgbaMat = new Mat(matROI);
-            return rgbaMat;
-        } else {//roi지정이 안되었을경우.
-            matAddr = ConvertSafe(rgbaMat.getNativeObjAddr(),roi.x, roi.y, roi.width, roi.height);
-            rgbaMat = new Mat(matAddr);
-            return rgbaMat;
+        int diff_cnt = Core.countNonZero(motionMat);
+        //Log.d(TAG, "diff_cnt : " + diff_cnt);
+        if (istogle) //토글에 따라 모드가 바뀜
+            return motionMat; // 흑백 감지표시
+        else return displayMat; // 감지 영역표시
+    }
+
+    private void userDrawRoi(Mat rgbaMat) {
+        roiMat.release();
+        roiMat = rgbaMat.clone();
+        if (Uroi.x != 0 && Uroi.y != 0 && Uroi.width > 0 && Uroi.height > 0) {
+            Imgproc.rectangle(roiMat, Uroi, new Scalar(0, 255, 255), 4);
+            roiMat.copyTo(displayMat);
+            //rgbaMat.release();
+        } else {
+            roiMat.copyTo(displayMat);
+            //rgbaMat.release();
         }
 
     }
 
-    @Override
-    public boolean onTouch(View view, MotionEvent motionEvent) {
-        int action = motionEvent.getAction();
-        float x = motionEvent.getX();
-        float y = motionEvent.getY();
-        PointF convertedPoint = convertTo16x9Coordinates(x, y);
-
-        switch (action){
-            case MotionEvent.ACTION_DOWN:
-                roi.x = (int)convertedPoint.x;
-                roi.y = (int)convertedPoint.y;
-                Log.d(TAG, "down" + roi.x + " " + roi.y + "");
-                break;
-            case MotionEvent.ACTION_MOVE:
-                roi.width = (int)convertedPoint.x - roi.x;
-                roi.height = (int)convertedPoint.y - roi.y;
-                break;
-            case MotionEvent.ACTION_UP:
-                break;
+    private void processDetect(Mat inputColor) {
+        black.release();
+        Mat black = inputColor.clone();
+        Imgproc.cvtColor(inputColor, black, COLOR_RGBA2GRAY);
+        if (start) {
+            start = false;
+            // 큐가 비어있으면 같은 프레임3개를 일단 채움.
+            // 얕은 복사로 인해 같은 주소를 참조하는 3개의 객체가 같이 삭제되는 현상을 방지하기 위해 최초 2개 프레임만 깊은복사.
+            Log.d(TAG, "프레임 3개 채움");
+            MatQueue2.offer(black.clone());
+            MatQueue2.offer(black.clone());
+            MatQueue2.offer(black);
+        } else { //가장 오래된 프레임을 꺼내 메모지 해제 후 최근 프레임을 끼워넣어줌.
+            removeMat = MatQueue2.remove();
+            removeMat.release();
+            MatQueue2.offer(black);
         }
-        return true;
-    }
-
-    private RectF calculate16x9Rect() {
-        // 화면 크기 가져오기
-        DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-        int screenWidth = displayMetrics.widthPixels;
-        int screenHeight = displayMetrics.heightPixels;
-
-        // 16:9 비율에 따라 중앙 영역 계산
-        float width = Math.min(screenWidth, screenHeight * ASPECT_RATIO_16_9);
-        float height = width / ASPECT_RATIO_16_9;
-
-        // 중앙 좌표 계산
-        float centerX = screenWidth / 2.0f;
-        float centerY = screenHeight / 2.0f;
-
-        // 16:9 영역을 나타내는 RectF 반환
-        return new RectF(centerX - width / 2.0f, centerY - height / 2.0f, centerX + width / 2.0f, centerY + height / 2.0f);
-    }
-
-    private PointF convertTo16x9Coordinates(float touchX, float touchY) {
-        // 16:9 영역에서의 좌표로 변환
-        float convertedX = touchX - rect16x9.left;
-        float convertedY = touchY - rect16x9.top;
-        Log.d(TAG, "convertTo16x9Coordinates" + convertedX + " " + convertedY);
-
-        return new PointF(convertedX, convertedY);
-    }
-
-    // ...
+        //각 프레임을 꺼내 배열에 임시 저장.
+        frames[0] = MatQueue2.poll();
+        frames[1] = MatQueue2.poll();
+        frames[2] = MatQueue2.poll();
 
 
-    //펄미션
-    protected void onCameraPermissionGranted() {
-        List<? extends CameraBridgeViewBase> cameraViews = getCameraViewList();
-        if (cameraViews == null) {
-            return;
+        //----------------여기부터 움직임 감지 알고리즘
+        Mat diff1 = new Mat();
+        Mat diff2 = new Mat();
+        //각 프레임의 차이를 비교
+        Core.absdiff(frames[0], frames[1], diff1);
+        Core.absdiff(frames[1], frames[2], diff2);
+
+        //배열 객체들을 모두 사용하였으므로 다시 큐에 저장.
+        for (Mat frame : frames) {
+            MatQueue2.offer(frame);
         }
-        for (CameraBridgeViewBase cameraBridgeViewBase: cameraViews) {
-            if (cameraBridgeViewBase != null) {
-                cameraBridgeViewBase.setCameraPermissionGranted();
+
+        double meanDiff1 = Core.mean(diff1).val[0];
+        double meanDiff2 = Core.mean(diff2).val[0];
+
+        double thresh = ((meanDiff1 + meanDiff2) / 2.0)+10;
+        Mat diff1_t = new Mat();
+        Mat diff2_t = new Mat();
+
+        //이진화
+        Imgproc.threshold(diff1, diff1_t, thresh, 255, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(diff2, diff2_t, thresh, 255, Imgproc.THRESH_BINARY);
+        //이진화 한 결과물2개를 논리연산하여 두개의 결과가 모두 감지되었을 경우에만 표시
+        Core.bitwise_and(diff1_t, diff2_t, diff);
+
+        //커널 생성
+        Mat kernelErode = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.erode(diff, diff, kernelErode);
+
+        // 많은 확장
+        Mat kernelDilate = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.dilate(diff, diff, kernelDilate);
+        //morphology연산, 침식으로 작은 노이즈 제거 후 확장
+        //Imgproc.morphologyEx(diff, diff, Imgproc.MORPH_OPEN, k);
+        diff.copyTo(motionMat);
+
+        //램 점유 해제
+        hierarchy.release();
+        diff.release();
+        diff1.release();
+        diff2.release();
+        diff1_t.release();
+        diff2_t.release();
+        kernelErode.release();
+        kernelDilate.release();
+    }
+    long detectionStartTime = 0;
+    long detectionDurationThreshold = 3000;
+    long lastDetectionTime = 0;
+    long noDetectionCooldown = 5000;
+    private void drawroi() {
+        //초기화
+        contours.clear();
+        //객체 외각 탐지
+        Imgproc.findContours(motionMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+        List<Rect> boundingRects = new ArrayList<>();
+        //contours를 기준으로 사각형을 그림
+        for (MatOfPoint contour : contours) {
+            double area = Imgproc.contourArea(contour);
+            //일정 크기 이하의 사각형 무시
+            if (area > 1000) {
+                //contour의 꼭짓점들을 찾음.
+                MatOfPoint2f points = new MatOfPoint2f();
+                contour.convertTo(points, CV_32FC2);
+                //꼭짓점들을 기준으로 초기 사각형을 그림.
+                Rect rect = Imgproc.boundingRect(points);
+                boundingRects.add(rect);
             }
         }
+        //겹치는 사각형 병합
+        List<Rect> mergedRectangles = mergeRectangles(boundingRects, 1);
+        //주변 사각형 병합
+        List<Rect> finalRectangles = mergeAdjacentRectangles(mergedRectangles, 600);
+
+
+        for (Rect rect : finalRectangles) {
+            if (rect.area() > 50000) { // 제일 큰 사각형의 넓이가 50000 이상일 경우 트리거.
+                long currentTime = System.currentTimeMillis();
+                //반복 실행 방지. 감지된 객체가 사라져야 다시 활성화
+                if (detect) {
+                    // 움직임이 처음 감지된 경우
+                    detect = false;
+                    detectionStartTime = currentTime;
+
+                    Log.d(TAG, "Motion detected!");
+                }
+                lastDetectionTime = currentTime;
+                if (trigger && currentTime - detectionStartTime > detectionDurationThreshold) {
+                    // 움직임이 지속되고, 지정된 지속 시간 이상일 경우 트리거
+                    trigger = false;
+                    Log.d(TAG, "Triggered!!");
+                    lastDetectionTime = currentTime;
+
+                }
+            }
+            //출력
+            Imgproc.rectangle(displayMat, rect.tl(), rect.br(), new Scalar(0, 0, 255), 2);
+        }
+        long currentTime = System.currentTimeMillis();
+        //사각형 영역이 비었고, 5초가 지났을 때에만 트리거 재설정.
+        if (finalRectangles.isEmpty() && currentTime - lastDetectionTime > noDetectionCooldown) {
+            // 아무 것도 감지되지 않았을 때 trigger 재설정
+            detect  = true;
+            trigger = true;
+        }
     }
+    //인접한 사각형 병합 구현
+    private static List<Rect> mergeAdjacentRectangles(List<Rect> rects, double maxDistance) {
+        List<Rect> mergedRectangles = new ArrayList<>();
+
+        for (Rect rect : rects) {
+            boolean merged = false;
+
+            for (Rect existingRect : mergedRectangles) {
+                double distance = calculateDistance(rect, existingRect);
+
+                if (distance < maxDistance) {
+                    // Merge rectangles
+                    existingRect.x = Math.min(rect.x, existingRect.x);
+                    existingRect.y = Math.min(rect.y, existingRect.y);
+                    existingRect.width = Math.max(rect.x + rect.width, existingRect.x + existingRect.width) - existingRect.x;
+                    existingRect.height = Math.max(rect.y + rect.height, existingRect.y + existingRect.height) - existingRect.y;
+
+                    merged = true;
+                    break;
+                }
+            }
+
+            if (!merged) {
+                mergedRectangles.add(rect);
+            }
+        }
+
+        return mergedRectangles;
+    }
+    //사각형 거리 계산
+    private static double calculateDistance(Rect rect1, Rect rect2) {
+        Point center1 = new Point(rect1.x + rect1.width / 2.0, rect1.y + rect1.height / 2.0);
+        Point center2 = new Point(rect2.x + rect2.width / 2.0, rect2.y + rect2.height / 2.0);
+
+        return Math.sqrt(Math.pow(center1.x - center2.x, 2) + Math.pow(center1.y - center2.y, 2));
+    }
+
+    //겹치는 사각형 병합 구현
+    private static List<Rect> mergeRectangles(List<Rect> rects, double overlapThreshold) {
+        List<Rect> mergedRectangles = new ArrayList<>();
+
+        for (Rect rect : rects) {
+            boolean merged = false;
+
+            for (Rect existingRect : mergedRectangles) {
+                double overlap = calculateOverlap(rect, existingRect);
+
+                if (overlap > overlapThreshold) {
+                    // Merge rectangles
+                    existingRect.x = Math.min(rect.x, existingRect.x);
+                    existingRect.y = Math.min(rect.y, existingRect.y);
+                    existingRect.width = Math.max(rect.x + rect.width, existingRect.x + existingRect.width) - existingRect.x;
+                    existingRect.height = Math.max(rect.y + rect.height, existingRect.y + existingRect.height) - existingRect.y;
+
+                    merged = true;
+                    break;
+                }
+            }
+
+            if (!merged) {
+                mergedRectangles.add(rect);
+            }
+        }
+
+        return mergedRectangles;
+    }
+
+    //겹치는 사각형 위치계산
+    private static double calculateOverlap(Rect rect1, Rect rect2) {
+        int intersectionArea = Math.max(0, Math.min(rect1.x + rect1.width, rect2.x + rect2.width) - Math.max(rect1.x, rect2.x)) *
+                Math.max(0, Math.min(rect1.y + rect1.height, rect2.y + rect2.height) - Math.max(rect1.y, rect2.y));
+
+        int area1 = rect1.width * rect1.height;
+        int area2 = rect2.width * rect2.height;
+
+        return (double) intersectionArea / Math.min(area1, area2);
+    }
+    //펄미션
     static final int PERMISSIONS_REQUEST_CODE = 1000;
     String[] PERMISSIONS = {"android.permission.CAMERA"};
 
@@ -335,17 +522,15 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
 
         Log.d(TAG, "onRequestPermissionsResult: Permission request result received.");
 
-        switch (requestCode) {
-            case PERMISSIONS_REQUEST_CODE:
-                if (grantResults.length > 0) {
-                    boolean cameraPermissionAccepted = grantResults[0]
-                            == PackageManager.PERMISSION_GRANTED;
+        if (requestCode == PERMISSIONS_REQUEST_CODE) {
+            if (grantResults.length > 0) {
+                boolean cameraPermissionAccepted = grantResults[0]
+                        == PackageManager.PERMISSION_GRANTED;
 
-                    if (!cameraPermissionAccepted)
-                        Log.e(TAG, "onRequestPermissionsResult: Camera permission denied.");
-                    showDialogForPermission("앱을 실행하려면 퍼미션을 허가하셔야합니다.");
-                }
-                break;
+                if (!cameraPermissionAccepted)
+                    Log.e(TAG, "onRequestPermissionsResult: Camera permission denied.");
+                showDialogForPermission("앱을 실행하려면 퍼미션을 허가하셔야합니다.");
+            }
         }
     }
 
@@ -371,4 +556,25 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
     }
 
 
+    @Override
+    public boolean onTouch(View view, MotionEvent motionEvent) {
+        int action = motionEvent.getAction();
+        float x = motionEvent.getX();
+        float y = motionEvent.getY();
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                Uroi.width = 0;
+                Uroi.height = 0;
+                Uroi.x = (int) x;
+                Uroi.y = (int) y;
+                break;
+            case MotionEvent.ACTION_MOVE:
+                Uroi.width = (int) x - Uroi.x;
+                Uroi.height = (int) y - Uroi.y;
+            case MotionEvent.ACTION_UP:
+                break;
+        }
+        return true;
+    }
 }
