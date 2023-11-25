@@ -28,6 +28,7 @@ import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.MatOfRect;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
@@ -50,7 +51,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-public class cameraViewActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2,View.OnTouchListener {
+public class cameraViewActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2, View.OnTouchListener {
     private static final String TAG = "AndroidOpenCv";
     private CameraBridgeViewBase mCameraView;
     private boolean detect = false;
@@ -60,7 +61,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     Mat[] frames = new Mat[3];
     Mat removeMat = new Mat();
     Mat diff = new Mat();
-    private Rect Uroi = new Rect(0,0,0,0);
+    private Rect Uroi = new Rect(0, 0, 0, 0);
     Mat roiMat = new Mat();
     List<MatOfPoint> contours = new ArrayList<>();
     Mat hierarchy = new Mat();
@@ -68,13 +69,9 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
     Mat rgbaMat = new Mat();
     Mat displayMat = new Mat();
     Mat black = new Mat();
-    
 
 
-
-
-
-   // public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
+    // public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
 
     static {
         System.loadLibrary("opencv_java4");
@@ -137,7 +134,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         mCameraView.setVisibility(SurfaceView.VISIBLE);
         //mCameraView.setMaxFrameSize(1280, 720);
         mCameraView.setCvCameraViewListener(this);
-        mCameraView.setCameraIndex(0);
+        mCameraView.setCameraIndex(1);
         mCameraView.setCameraPermissionGranted();
         mCameraView.setOnTouchListener(this);
 
@@ -164,7 +161,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
             }
         });
 
-        initROIButton2.setOnClickListener(new View.OnClickListener(){
+        initROIButton2.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Uroi.x = 0;
@@ -301,6 +298,7 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         }
 
     }
+
     private void processDetect(Mat inputColor) {
         black.release();
         Mat black = inputColor.clone();
@@ -336,7 +334,10 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
             MatQueue2.offer(frame);
         }
 
-        double thresh = 11;
+        double meanDiff1 = Core.mean(diff1).val[0];
+        double meanDiff2 = Core.mean(diff2).val[0];
+
+        double thresh = ((meanDiff1 + meanDiff2) / 2.0)+10;
         Mat diff1_t = new Mat();
         Mat diff2_t = new Mat();
 
@@ -347,9 +348,14 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         Core.bitwise_and(diff1_t, diff2_t, diff);
 
         //커널 생성
-        Mat k = Imgproc.getStructuringElement(Imgproc.MORPH_CROSS, new Size(10, 10));
+        Mat kernelErode = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.erode(diff, diff, kernelErode);
+
+        // 많은 확장
+        Mat kernelDilate = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.dilate(diff, diff, kernelDilate);
         //morphology연산, 침식으로 작은 노이즈 제거 후 확장
-        Imgproc.morphologyEx(diff, diff, Imgproc.MORPH_OPEN, k);
+        //Imgproc.morphologyEx(diff, diff, Imgproc.MORPH_OPEN, k);
         diff.copyTo(motionMat);
 
         //램 점유 해제
@@ -359,32 +365,117 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
         diff2.release();
         diff1_t.release();
         diff2_t.release();
-        k.release();
+        kernelErode.release();
+        kernelDilate.release();
     }
-    private void drawroi(){
-        /*contours.clear();
-        Imgproc.findContours(motionMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
-        for (int i = 0; i < contours.size(); i++) {
-            Rect boundingRect = Imgproc.boundingRect(contours.get(i));
-            Imgproc.rectangle(rgbaMat, boundingRect.tl(), boundingRect.br(), new Scalar(0, 255, 0), 2);
-            Log.d(TAG, "그린 후 rgba" + rgbaMat);
-        }*/
-        //문제점. 감지하는 사각형이 그려질수록 램이 늘어나고 빠지지않음.
+    private void drawroi() {
+        //초기화
         contours.clear();
+        //객체 외각 탐지
         Imgproc.findContours(motionMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-            //contours를 기준으로 사각형을 그립니다.
+        List<Rect> boundingRects = new ArrayList<>();
+        //contours를 기준으로 사각형을 그림
         for (MatOfPoint contour : contours) {
-            //contour의 꼭짓점들을 찾습니다.
-            MatOfPoint2f points = new MatOfPoint2f();
-            contour.convertTo(points, CV_32FC2);
-            //꼭짓점들을 기준으로 사각형을 그립니다.
-            Rect rect = Imgproc.boundingRect(points);
-            Imgproc.rectangle(displayMat, rect, new Scalar(0, 0, 255), 2);
+            double area = Imgproc.contourArea(contour);
+            //일정 크기 이하의 사각형 무시
+            if (area > 1000) {
+                //contour의 꼭짓점들을 찾음.
+                MatOfPoint2f points = new MatOfPoint2f();
+                contour.convertTo(points, CV_32FC2);
+                //꼭짓점들을 기준으로 초기 사각형을 그림.
+                Rect rect = Imgproc.boundingRect(points);
+                boundingRects.add(rect);
+            }
+        }
+        //겹치는 사각형 병합
+        List<Rect> mergedRectangles = mergeRectangles(boundingRects, 1);
+        //주변 사각형 병합
+        List<Rect> finalRectangles = mergeAdjacentRectangles(mergedRectangles, 600);
+
+        //출력
+        for (Rect rect : finalRectangles) {
+            Imgproc.rectangle(displayMat, rect.tl(), rect.br(), new Scalar(0, 0, 255), 2);
         }
 
     }
+    //인접한 사각형 병합 구현
+    private static List<Rect> mergeAdjacentRectangles(List<Rect> rects, double maxDistance) {
+        List<Rect> mergedRectangles = new ArrayList<>();
 
+        for (Rect rect : rects) {
+            boolean merged = false;
+
+            for (Rect existingRect : mergedRectangles) {
+                double distance = calculateDistance(rect, existingRect);
+
+                if (distance < maxDistance) {
+                    // Merge rectangles
+                    existingRect.x = Math.min(rect.x, existingRect.x);
+                    existingRect.y = Math.min(rect.y, existingRect.y);
+                    existingRect.width = Math.max(rect.x + rect.width, existingRect.x + existingRect.width) - existingRect.x;
+                    existingRect.height = Math.max(rect.y + rect.height, existingRect.y + existingRect.height) - existingRect.y;
+
+                    merged = true;
+                    break;
+                }
+            }
+
+            if (!merged) {
+                mergedRectangles.add(rect);
+            }
+        }
+
+        return mergedRectangles;
+    }
+    //사각형 거리 계산
+    private static double calculateDistance(Rect rect1, Rect rect2) {
+        Point center1 = new Point(rect1.x + rect1.width / 2.0, rect1.y + rect1.height / 2.0);
+        Point center2 = new Point(rect2.x + rect2.width / 2.0, rect2.y + rect2.height / 2.0);
+
+        return Math.sqrt(Math.pow(center1.x - center2.x, 2) + Math.pow(center1.y - center2.y, 2));
+    }
+
+    //겹치는 사각형 병합 구현
+    private static List<Rect> mergeRectangles(List<Rect> rects, double overlapThreshold) {
+        List<Rect> mergedRectangles = new ArrayList<>();
+
+        for (Rect rect : rects) {
+            boolean merged = false;
+
+            for (Rect existingRect : mergedRectangles) {
+                double overlap = calculateOverlap(rect, existingRect);
+
+                if (overlap > overlapThreshold) {
+                    // Merge rectangles
+                    existingRect.x = Math.min(rect.x, existingRect.x);
+                    existingRect.y = Math.min(rect.y, existingRect.y);
+                    existingRect.width = Math.max(rect.x + rect.width, existingRect.x + existingRect.width) - existingRect.x;
+                    existingRect.height = Math.max(rect.y + rect.height, existingRect.y + existingRect.height) - existingRect.y;
+
+                    merged = true;
+                    break;
+                }
+            }
+
+            if (!merged) {
+                mergedRectangles.add(rect);
+            }
+        }
+
+        return mergedRectangles;
+    }
+
+    //겹치는 사각형 위치계산
+    private static double calculateOverlap(Rect rect1, Rect rect2) {
+        int intersectionArea = Math.max(0, Math.min(rect1.x + rect1.width, rect2.x + rect2.width) - Math.max(rect1.x, rect2.x)) *
+                Math.max(0, Math.min(rect1.y + rect1.height, rect2.y + rect2.height) - Math.max(rect1.y, rect2.y));
+
+        int area1 = rect1.width * rect1.height;
+        int area2 = rect2.width * rect2.height;
+
+        return (double) intersectionArea / Math.min(area1, area2);
+    }
     //펄미션
     static final int PERMISSIONS_REQUEST_CODE = 1000;
     String[] PERMISSIONS = {"android.permission.CAMERA"};
@@ -453,12 +544,12 @@ public class cameraViewActivity extends AppCompatActivity implements CameraBridg
             case MotionEvent.ACTION_DOWN:
                 Uroi.width = 0;
                 Uroi.height = 0;
-                Uroi.x = (int)x;
-                Uroi.y = (int)y;
+                Uroi.x = (int) x;
+                Uroi.y = (int) y;
                 break;
             case MotionEvent.ACTION_MOVE:
-                Uroi.width = (int)x - Uroi.x;
-                Uroi.height = (int)y - Uroi.y;
+                Uroi.width = (int) x - Uroi.x;
+                Uroi.height = (int) y - Uroi.y;
             case MotionEvent.ACTION_UP:
                 break;
         }
