@@ -44,9 +44,6 @@
             android:name=".SettingsActivity"
             android:exported="false" />
         <activity
-            android:name=".TestActivity"
-            android:exported="false" />
-        <activity
             android:name=".AllSafetyVisionModeActivity"
             android:configChanges="keyboardHidden|orientation"
             android:exported="true"
@@ -56,15 +53,7 @@
             android:configChanges="keyboardHidden|orientation"
             android:exported="true"
             android:screenOrientation="landscape" />
-        <activity
-            android:name=".cameraViewActivity"
-            android:configChanges="keyboardHidden|orientation"
-            android:exported="true"
-            android:screenOrientation="landscape">
-            <intent-filter>
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
+
         <activity
             android:name=".MainMenu"
             android:exported="true"

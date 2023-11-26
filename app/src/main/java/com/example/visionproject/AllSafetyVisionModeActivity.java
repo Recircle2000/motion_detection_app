@@ -45,11 +45,19 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.analytics.FirebaseAnalytics;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class AllSafetyVisionModeActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
     private static final String TAG = "AndroidOpenCv";
@@ -70,8 +78,8 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
     Mat rgbaMat = new Mat();
     Mat displayMat = new Mat();
     Mat black = new Mat();
-    String motionDetection = "";
-    Handler handler = new Handler(Looper.getMainLooper());
+    UserRetrofitInterface userRetrofitInterface;
+    String receivedToken;
 
     // public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
 
@@ -117,9 +125,13 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
+        FirebaseApp.initializeApp(this);
+        FirebaseAnalytics.getInstance(this);
         super.onCreate(savedInstanceState);
         Intent intent = getIntent();
+        String receivedToken = intent.getStringExtra("token");
+        Notification notification = new Notification(receivedToken);
+        Log.d(TAG,  receivedToken);
 
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -136,7 +148,7 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         mCameraView.setVisibility(SurfaceView.VISIBLE);
         //mCameraView.setMaxFrameSize(1280, 720);
         mCameraView.setCvCameraViewListener(this);
-        mCameraView.setCameraIndex(0);
+        mCameraView.setCameraIndex(99);
         mCameraView.setCameraPermissionGranted();
 
 
@@ -355,7 +367,7 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         for (MatOfPoint contour : contours) {
             double area = Imgproc.contourArea(contour);
             //일정 크기 이하의 사각형 무시
-            if (area > 1000) {
+            if (area > 50) {
                 //contour의 꼭짓점들을 찾음.
                 MatOfPoint2f points = new MatOfPoint2f();
                 contour.convertTo(points, CV_32FC2);
@@ -367,11 +379,11 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         //겹치는 사각형 병합
         List<Rect> mergedRectangles = mergeRectangles(boundingRects, 1);
         //주변 사각형 병합
-        List<Rect> finalRectangles = mergeAdjacentRectangles(mergedRectangles, 600);
+        List<Rect> finalRectangles = mergeAdjacentRectangles(mergedRectangles, 1000);
 
 
         for (Rect rect : finalRectangles) {
-            if (rect.area() > 50000) { // 제일 큰 사각형의 넓이가 50000 이상일 경우 트리거.
+            if (rect.area() > 100000) { // 제일 큰 사각형의 넓이가 50000 이상일 경우 트리거.
                 long currentTime = System.currentTimeMillis();
                 //반복 실행 방지. 감지된 객체가 사라져야 다시 활성화
                 if (detect) {
@@ -381,13 +393,18 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
                     detectText = "detected!";
                     detectScalar = new Scalar(200,200,200);
                     Log.d(TAG, "Motion detected!");
-                }
-                lastDetectionTime = currentTime;
+                } else
+
                 if (trigger && currentTime - detectionStartTime > detectionDurationThreshold) {
                     // 움직임이 지속되고, 지정된 지속 시간 이상일 경우 트리거
                     trigger = false;
-                    Log.d(TAG, "Triggered!!");
+                    Log.d(TAG, "Triggered!!" + SettingsUtil.getAlartEnabled(this));
                     detectScalar = new Scalar(200,0,0);
+                    if (SettingsUtil.getAlartEnabled(this)) {
+                        // 알림 활성화된 경우
+                        Notification.sendPushNotification("안전 카메라","움직임이 발견되었습니다!");
+                    }
+
                     detectText = "Triggered!!";
                     lastDetectionTime = currentTime;
                 }
@@ -401,7 +418,7 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         if (finalRectangles.isEmpty() && currentTime - lastDetectionTime > noDetectionCooldown) {
             // 아무 것도 감지되지 않았을 때 trigger 재설정
             detect  = true;
-            detectText = "";
+            detectText = "Cooldown";
             trigger = true;
 
         }

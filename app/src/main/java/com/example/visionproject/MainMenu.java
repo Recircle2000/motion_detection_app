@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
@@ -48,9 +49,8 @@ public class MainMenu extends AppCompatActivity {
 
         FirebaseApp.initializeApp(this);
         FirebaseAnalytics.getInstance(this);
-
+        Notification notification = new Notification(fcmtoken);
         getFirebaseMessagingToken();
-
         //invoke
         setContentView(R.layout.activity_main);
 
@@ -60,26 +60,17 @@ public class MainMenu extends AppCompatActivity {
             }
         }
 
-        Button cameraViewButton = findViewById(R.id.Camera_View_Button);
         Button testViewButton = findViewById(R.id.CVtest_Button);
         Button SafetyAreaViewButton = findViewById(R.id.Safety_Area_Button);
         Button AllSafetyAreaViewButton = findViewById(R.id.AllSafety_Button);
         Button OptionsButton = findViewById(R.id.Option_button);
-        Button LoginButton = findViewById(R.id.Login_button);
-        cameraViewButton.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(MainMenu.this, AllSafetyVisionModeActivity.class);
-                intent.putExtra("mode",0);
-                startActivity(intent);
-            }
-        });
+
 
         SafetyAreaViewButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
                 Intent intent = new Intent(MainMenu.this, SafetyVisionModeActivity.class);
-                intent.putExtra("mode",2);
+                intent.putExtra("token",fcmtoken);
                 startActivity(intent);
             }
         });
@@ -87,10 +78,13 @@ public class MainMenu extends AppCompatActivity {
         testViewButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
-                sendPushNotification();
-                Intent intent = new Intent(MainMenu.this, TestActivity.class);
+                //Notification.sendPushNotification("테스트", "바디");
+                Notification.sendPushNotification("안전 카메라","테스트 응답");
+                showToast("푸시알림 요청함");
+                Log.d("AndroidOpenCv",fcmtoken);
+                /*Intent intent = new Intent(MainMenu.this, TestActivity.class);
                 intent.putExtra("mode",3);
-                startActivity(intent);
+                startActivity(intent);*/
             }
         });
 
@@ -98,7 +92,7 @@ public class MainMenu extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Intent intent = new Intent(MainMenu.this, AllSafetyVisionModeActivity.class);
-                intent.putExtra("mode",4);
+                intent.putExtra("token",fcmtoken);
                 startActivity(intent);
             }
         });
@@ -159,7 +153,10 @@ public class MainMenu extends AppCompatActivity {
                 break;
         }
     }
-
+    private void showToast(String title) {
+        String message = title;
+        Toast.makeText(MainMenu.this, message, Toast.LENGTH_SHORT).show();
+    }
 
     @TargetApi(Build.VERSION_CODES.M)
     private void showDialogForPermission(String msg) {
@@ -186,48 +183,14 @@ public class MainMenu extends AppCompatActivity {
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful() && task.getResult() != null) {
                         String token = task.getResult();
-                        Log.d("FCM Token", token);
+                        Log.d("AndroidOpenCv", token);
                         fcmtoken = token;
                         // 여기서 얻은 토큰을 서버에 전송하거나 사용할 수 있습니다.
                     } else {
-                        Log.e("FCM Token", "Token retrieval failed");
+                        Log.e("AndroidOpenCv", "Token retrieval failed");
                     }
                 });
     }
 
-    // 서버에 메시지 형시을 보네는 함수
-    private void sendPushNotification() {
-        PushNotificationRequest request = new PushNotificationRequest();
-        request.setTargetToken(fcmtoken);
-        request.setTitle("테스트 제목");
-        request.setBody("정상 수신됨");
-        request.setId("123");  // 예시로 임의의 ID 부여
-        request.setIsEnd("false");  // 예시로 "false" 부여
-
-        UserRetrofitInterface userRetrofitInterface = RetrofitClient.getInstance().create(UserRetrofitInterface.class);
-
-// Null 체크
-        if (userRetrofitInterface != null) {
-            // Retrofit 객체 사용 가능
-            Call<ResponseBody> call = userRetrofitInterface.sendPushNotification(request);
-
-            call.enqueue(new Callback<ResponseBody>() {
-                @Override
-                public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
-                    // 성공적으로 응답 받았을 때의 처리
-                    if (response.isSuccessful()) {
-                        Log.d("통신", "성공");
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<ResponseBody> call, Throwable t) {
-                    Log.e("통신", "실패");
-                }
-            });
-        } else {
-            Log.e("초기화", "Retrofit 객체 안됨");
-        }
-    }
 
 }

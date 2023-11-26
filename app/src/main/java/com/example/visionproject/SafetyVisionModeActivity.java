@@ -28,7 +28,6 @@ import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
-import org.opencv.core.MatOfRect;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
@@ -38,6 +37,7 @@ import org.opencv.imgproc.Imgproc;
 
 import static org.opencv.core.CvType.CV_32FC2;
 import static org.opencv.imgproc.Imgproc.COLOR_RGBA2GRAY;
+import static org.opencv.imgproc.Imgproc.FONT_HERSHEY_SIMPLEX;
 import static org.opencv.imgproc.Imgproc.rectangle;
 
 
@@ -45,20 +45,30 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.analytics.FirebaseAnalytics;
+import com.google.firebase.messaging.FirebaseMessaging;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class SafetyVisionModeActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2, View.OnTouchListener {
     private static final String TAG = "AndroidOpenCv";
     private CameraBridgeViewBase mCameraView;
+    private boolean intersect = true;
     private boolean detect = true;
     private boolean start = true;
     private boolean trigger = true;
     boolean istogle = false;
-    Queue<Mat> MatQueue2 = new LinkedList<>();
+    Queue<Mat> QueueMat = new LinkedList<>();
     Mat[] frames = new Mat[3];
     Mat removeMat = new Mat();
     Mat diff = new Mat();
@@ -70,6 +80,8 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
     Mat rgbaMat = new Mat();
     Mat displayMat = new Mat();
     Mat black = new Mat();
+    UserRetrofitInterface userRetrofitInterface;
+    String receivedToken;
 
     // public native long ConvertRGBtoGray(long matAddrInput1, long matAddrInput2, long matAddrInput3);
 
@@ -115,10 +127,14 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
+        FirebaseApp.initializeApp(this);
+        FirebaseAnalytics.getInstance(this);
         super.onCreate(savedInstanceState);
         Intent intent = getIntent();
-
+        String receivedToken = intent.getStringExtra("token");
+        Notification notification = new Notification(receivedToken);
+        Log.d(TAG,  receivedToken);
+        Toast.makeText(this, "위험 구역을 지정해주세요!", Toast.LENGTH_LONG).show();
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         Log.d(TAG, "onCreate: Starting cameraViewActivity");
@@ -139,7 +155,7 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         mCameraView.setOnTouchListener(this);
 
         Button button = findViewById(R.id.button);
-        Button initROIButton2 = findViewById(R.id.init_ROI2);
+        Button initROIButton2 = findViewById(R.id.init_ROI);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -269,7 +285,7 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         displayMat = rgbaMat.clone();
         processDetect(rgbaMat);
         userDrawRoi(rgbaMat);
-        drawroi();
+        processTrigger();
 
         int diff_cnt = Core.countNonZero(motionMat);
         //Log.d(TAG, "diff_cnt : " + diff_cnt);
@@ -301,18 +317,18 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
             // 큐가 비어있으면 같은 프레임3개를 일단 채움.
             // 얕은 복사로 인해 같은 주소를 참조하는 3개의 객체가 같이 삭제되는 현상을 방지하기 위해 최초 2개 프레임만 깊은복사.
             Log.d(TAG, "프레임 3개 채움");
-            MatQueue2.offer(black.clone());
-            MatQueue2.offer(black.clone());
-            MatQueue2.offer(black);
+            QueueMat.offer(black.clone());
+            QueueMat.offer(black.clone());
+            QueueMat.offer(black);
         } else { //가장 오래된 프레임을 꺼내 메모지 해제 후 최근 프레임을 끼워넣어줌.
-            removeMat = MatQueue2.remove();
+            removeMat = QueueMat.remove();
             removeMat.release();
-            MatQueue2.offer(black);
+            QueueMat.offer(black);
         }
         //각 프레임을 꺼내 배열에 임시 저장.
-        frames[0] = MatQueue2.poll();
-        frames[1] = MatQueue2.poll();
-        frames[2] = MatQueue2.poll();
+        frames[0] = QueueMat.poll();
+        frames[1] = QueueMat.poll();
+        frames[2] = QueueMat.poll();
 
 
         //----------------여기부터 움직임 감지 알고리즘
@@ -324,12 +340,13 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
 
         //배열 객체들을 모두 사용하였으므로 다시 큐에 저장.
         for (Mat frame : frames) {
-            MatQueue2.offer(frame);
+            QueueMat.offer(frame);
         }
-
+        //평균 밝기 구하기
         double meanDiff1 = Core.mean(diff1).val[0];
         double meanDiff2 = Core.mean(diff2).val[0];
 
+        //평균 밝기로 임계값 자동 조절
         double thresh = ((meanDiff1 + meanDiff2) / 2.0)+10;
         Mat diff1_t = new Mat();
         Mat diff2_t = new Mat();
@@ -337,6 +354,7 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         //이진화
         Imgproc.threshold(diff1, diff1_t, thresh, 255, Imgproc.THRESH_BINARY);
         Imgproc.threshold(diff2, diff2_t, thresh, 255, Imgproc.THRESH_BINARY);
+
         //이진화 한 결과물2개를 논리연산하여 두개의 결과가 모두 감지되었을 경우에만 표시
         Core.bitwise_and(diff1_t, diff2_t, diff);
 
@@ -345,10 +363,10 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         Imgproc.erode(diff, diff, kernelErode);
 
         // 많은 확장
-        Mat kernelDilate = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Mat kernelDilate = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5));
         Imgproc.dilate(diff, diff, kernelDilate);
-        //morphology연산, 침식으로 작은 노이즈 제거 후 확장
-        //Imgproc.morphologyEx(diff, diff, Imgproc.MORPH_OPEN, k);
+
+        //반환
         diff.copyTo(motionMat);
 
         //램 점유 해제
@@ -358,14 +376,17 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         diff2.release();
         diff1_t.release();
         diff2_t.release();
-        kernelErode.release();
         kernelDilate.release();
+        kernelErode.release();
     }
     long detectionStartTime = 0;
-    long detectionDurationThreshold = 3000;
+    long detectionDurationThreshold = 1000;
     long lastDetectionTime = 0;
     long noDetectionCooldown = 5000;
-    private void drawroi() {
+
+    String detectText = "";
+    Scalar detectScalar = new Scalar(200,200,200);
+    private void processTrigger() {
         //초기화
         contours.clear();
         //객체 외각 탐지
@@ -375,7 +396,7 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         for (MatOfPoint contour : contours) {
             double area = Imgproc.contourArea(contour);
             //일정 크기 이하의 사각형 무시
-            if (area > 1000) {
+            if (area > 500) {
                 //contour의 꼭짓점들을 찾음.
                 MatOfPoint2f points = new MatOfPoint2f();
                 contour.convertTo(points, CV_32FC2);
@@ -392,35 +413,69 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
 
         for (Rect rect : finalRectangles) {
             if (rect.area() > 50000) { // 제일 큰 사각형의 넓이가 50000 이상일 경우 트리거.
-                long currentTime = System.currentTimeMillis();
-                //반복 실행 방지. 감지된 객체가 사라져야 다시 활성화
-                if (detect) {
-                    // 움직임이 처음 감지된 경우
-                    detect = false;
-                    detectionStartTime = currentTime;
-
-                    Log.d(TAG, "Motion detected!");
+                Rect largeRect = new Rect(rect.tl(), rect.br());
+                if (detect){
+                    detect=false;
+                    detectText = "DETECT";
+                    detectScalar = new Scalar(200,200,200);
                 }
-                lastDetectionTime = currentTime;
-                if (trigger && currentTime - detectionStartTime > detectionDurationThreshold) {
-                    // 움직임이 지속되고, 지정된 지속 시간 이상일 경우 트리거
-                    trigger = false;
-                    Log.d(TAG, "Triggered!!");
+                if (isRectIntersect(Uroi,largeRect)){ // 겹치면
+                    long currentTime = System.currentTimeMillis();
+                    if (intersect) {
+                        // 움직임이 처음 감지된 경우
+                        intersect = false;
+                        detectionStartTime = currentTime;
+                        detectText = "Intersect!";
+                        detectScalar = new Scalar(200,0,200);
+                        Log.d(TAG, "Motion detected!");
+                    }
                     lastDetectionTime = currentTime;
+                    if (trigger && currentTime - detectionStartTime > detectionDurationThreshold) {
+                        // 움직임이 지속되고, 지정된 지속 시간 이상일 경우 트리거
+                        trigger = false;
+                        detectScalar = new Scalar(200,0,0);
+                        detectText = "Triggered!!";
+                        Log.d(TAG, "Triggered!!"+SettingsUtil.getAlartEnabled(this));
+                        if (SettingsUtil.getAlartEnabled(this)) {
+                            // 알림 활성화된 경우
+                            Notification.sendPushNotification("안전 카메라","위험구역에 움직임이 감지되었습니다!");
+                        }
+                        lastDetectionTime = currentTime;
+                    }
 
                 }
+                long currentTime = System.currentTimeMillis();
+                if (!isRectIntersect(Uroi,largeRect)){
+                    if (currentTime - lastDetectionTime > noDetectionCooldown){
+                        detectText = "";
+                        intersect = true;
+                        trigger = true;
+                        detect = true;
+
+                    }
+
+                }
+
+
+                //반복 실행 방지. 감지된 객체가 사라져야 다시 활성화
+
             }
+            Imgproc.putText(displayMat, detectText, new Point(20,200),FONT_HERSHEY_SIMPLEX,2, detectScalar,5);
             //출력
             Imgproc.rectangle(displayMat, rect.tl(), rect.br(), new Scalar(0, 0, 255), 2);
         }
-        long currentTime = System.currentTimeMillis();
+        //long currentTime = System.currentTimeMillis();
         //사각형 영역이 비었고, 5초가 지났을 때에만 트리거 재설정.
-        if (finalRectangles.isEmpty() && currentTime - lastDetectionTime > noDetectionCooldown) {
-            // 아무 것도 감지되지 않았을 때 trigger 재설정
-            detect  = true;
-            trigger = true;
-        }
+
     }
+
+    private boolean isRectIntersect(Rect rect1, Rect rect2) {
+        return rect1.x < rect2.x + rect2.width &&
+                rect1.x + rect1.width > rect2.x &&
+                rect1.y < rect2.y + rect2.height &&
+                rect1.y + rect1.height > rect2.y;
+    }
+
     //인접한 사각형 병합 구현
     private static List<Rect> mergeAdjacentRectangles(List<Rect> rects, double maxDistance) {
         List<Rect> mergedRectangles = new ArrayList<>();
@@ -577,4 +632,40 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         }
         return true;
     }
+
+
+    /*private void sendPushNotification() {
+        PushNotificationRequest request = new PushNotificationRequest();
+        request.setTargetToken(receivedToken);
+        request.setTitle("위험구역");
+        request.setBody("위험구역에 움직임 감지");
+        request.setId("123");  // 예시로 임의의 ID 부여
+        request.setIsEnd("false");  // 예시로 "false" 부여
+
+        UserRetrofitInterface userRetrofitInterface = RetrofitClient.getInstance().create(UserRetrofitInterface.class);
+
+// Null 체크
+        if (userRetrofitInterface != null) {
+            // Retrofit 객체 사용 가능
+            Call<ResponseBody> call = userRetrofitInterface.sendPushNotification(request);
+
+            call.enqueue(new Callback<ResponseBody>() {
+                @Override
+                public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                    // 성공적으로 응답 받았을 때의 처리
+                    if (response.isSuccessful()) {
+                        Log.d("통신", "성공");
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<ResponseBody> call, Throwable t) {
+                    Log.e("통신", "실패");
+                }
+            });
+        } else {
+            Log.e("초기화", "Retrofit 객체 안됨");
+        }
+    }*/
+
 }

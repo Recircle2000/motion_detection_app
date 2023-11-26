@@ -26,19 +26,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/activity_safe_view">
-        <Button
-            android:id="@+id/init_ROI2"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
 
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            android:layout_marginTop="0dp"
-            android:layout_marginEnd="120dp"
-
-            android:layout_marginBottom="0dp"
-            android:text="초기화"
-            android:visibility="visible" />
         <TextView
             android:id="@+id/motionDetectionTextView"
             android:layout_width="wrap_content"
@@ -52,7 +40,7 @@
             android:id="@+id/switch2"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_toLeftOf="@id/init_ROI2"
+            android:layout_toLeftOf="@id/init_ROI"
             android:layout_marginEnd="20dp"
             />
 
@@ -66,7 +54,7 @@
             android:layout_marginEnd="5dp"
             android:layout_marginBottom="10dp"
             android:gravity="start|center"
-            android:text="안전구역 지정모드"
+            android:text="위험구역 지정모드"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:textStyle="bold" />
