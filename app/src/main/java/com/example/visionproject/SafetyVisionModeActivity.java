@@ -150,7 +150,7 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         mCameraView.setVisibility(SurfaceView.VISIBLE);
         //mCameraView.setMaxFrameSize(1280, 720);
         mCameraView.setCvCameraViewListener(this);
-        mCameraView.setCameraIndex(0);
+        mCameraView.setCameraIndex(1);
         mCameraView.setCameraPermissionGranted();
         mCameraView.setOnTouchListener(this);
 
@@ -359,11 +359,14 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         Core.bitwise_and(diff1_t, diff2_t, diff);
 
         //커널 생성
-        Mat kernelErode = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.erode(diff, diff, kernelErode);
-
+        Mat erodeKernel = Imgproc.getStructuringElement
+                (Imgproc.MORPH_RECT, new Size(4, 4));
+        //침식 연산
+        Imgproc.erode(diff, diff, erodeKernel);
         // 많은 확장
-        Mat kernelDilate = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5));
+        Mat kernelDilate = Imgproc.getStructuringElement
+                (Imgproc.MORPH_RECT, new Size(10, 10));
+        Imgproc.dilate(diff, diff, kernelDilate);
         Imgproc.dilate(diff, diff, kernelDilate);
 
         //반환
@@ -377,7 +380,7 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         diff1_t.release();
         diff2_t.release();
         kernelDilate.release();
-        kernelErode.release();
+        erodeKernel.release();
     }
     long detectionStartTime = 0;
     long detectionDurationThreshold = 1000;
@@ -396,7 +399,7 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         for (MatOfPoint contour : contours) {
             double area = Imgproc.contourArea(contour);
             //일정 크기 이하의 사각형 무시
-            if (area > 500) {
+            if (area > 1000) {
                 //contour의 꼭짓점들을 찾음.
                 MatOfPoint2f points = new MatOfPoint2f();
                 contour.convertTo(points, CV_32FC2);
@@ -407,12 +410,14 @@ public class SafetyVisionModeActivity extends AppCompatActivity implements Camer
         }
         //겹치는 사각형 병합
         List<Rect> mergedRectangles = mergeRectangles(boundingRects, 1);
+        mergedRectangles = mergeRectangles(mergedRectangles, 1);
         //주변 사각형 병합
-        List<Rect> finalRectangles = mergeAdjacentRectangles(mergedRectangles, 600);
+        List<Rect> finalRectangles = mergeAdjacentRectangles(mergedRectangles, 500);
+        finalRectangles = mergeAdjacentRectangles(finalRectangles, 500);
 
 
         for (Rect rect : finalRectangles) {
-            if (rect.area() > 50000) { // 제일 큰 사각형의 넓이가 50000 이상일 경우 트리거.
+            if (rect.area() > 40000) { // 제일 큰 사각형의 넓이가 50000 이상일 경우 트리거.
                 Rect largeRect = new Rect(rect.tl(), rect.br());
                 if (detect){
                     detect=false;

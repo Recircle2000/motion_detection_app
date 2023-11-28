@@ -10,8 +10,6 @@ import android.os.Bundle;
 
 import androidx.core.content.ContextCompat;
 
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
@@ -54,11 +52,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-import okhttp3.ResponseBody;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-
 public class AllSafetyVisionModeActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
     private static final String TAG = "AndroidOpenCv";
     private CameraBridgeViewBase mCameraView;
@@ -66,7 +59,7 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
     private boolean start = true;
     private boolean trigger = true;
     boolean istogle = false;
-    Queue<Mat> MatQueue2 = new LinkedList<>();
+    Queue<Mat> MatQueue = new LinkedList<>();
     Mat[] frames = new Mat[3];
     Mat removeMat = new Mat();
     Mat diff = new Mat();
@@ -148,8 +141,9 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         mCameraView.setVisibility(SurfaceView.VISIBLE);
         //mCameraView.setMaxFrameSize(1280, 720);
         mCameraView.setCvCameraViewListener(this);
-        mCameraView.setCameraIndex(99);
+        mCameraView.setCameraIndex(1);
         mCameraView.setCameraPermissionGranted();
+
 
 
 
@@ -281,27 +275,28 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         else return displayMat; // 감지 영역표시
     }
 
-    private void processDetect(Mat inputColor) {
+    private void processDetect(Mat inputFrame_BGR) {
         black.release();
-        Mat black = inputColor.clone();
-        Imgproc.cvtColor(inputColor, black, COLOR_RGBA2GRAY);
+        Mat newFrame = inputFrame_BGR.clone();
+        Imgproc.cvtColor(inputFrame_BGR, newFrame, COLOR_RGBA2GRAY);
         if (start) {
             start = false;
             // 큐가 비어있으면 같은 프레임3개를 일단 채움.
             // 얕은 복사로 인해 같은 주소를 참조하는 3개의 객체가 같이 삭제되는 현상을 방지하기 위해 최초 2개 프레임만 깊은복사.
             Log.d(TAG, "프레임 3개 채움");
-            MatQueue2.offer(black.clone());
-            MatQueue2.offer(black.clone());
-            MatQueue2.offer(black);
-        } else { //가장 오래된 프레임을 꺼내 메모지 해제 후 최근 프레임을 끼워넣어줌.
-            removeMat = MatQueue2.remove();
+            MatQueue.offer(newFrame.clone());
+            MatQueue.offer(newFrame.clone());
+            MatQueue.offer(newFrame);
+        } else {
+            //가장 오래된 프레임을 꺼내 메모지 해제 후 최근 프레임을 끼워넣어줌.
+            removeMat = MatQueue.remove();
             removeMat.release();
-            MatQueue2.offer(black);
+            MatQueue.offer(newFrame);
         }
         //각 프레임을 꺼내 배열에 임시 저장.
-        frames[0] = MatQueue2.poll();
-        frames[1] = MatQueue2.poll();
-        frames[2] = MatQueue2.poll();
+        frames[0] = MatQueue.poll();
+        frames[1] = MatQueue.poll();
+        frames[2] = MatQueue.poll();
 
 
         //----------------여기부터 움직임 감지 알고리즘
@@ -313,13 +308,14 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
 
         //배열 객체들을 모두 사용하였으므로 다시 큐에 저장.
         for (Mat frame : frames) {
-            MatQueue2.offer(frame);
+            MatQueue.offer(frame);
         }
 
         double meanDiff1 = Core.mean(diff1).val[0];
         double meanDiff2 = Core.mean(diff2).val[0];
 
         double thresh = ((meanDiff1 + meanDiff2) / 2.0)+10;
+        Log.d(TAG, "thresh: " + thresh);
         Mat diff1_t = new Mat();
         Mat diff2_t = new Mat();
 
@@ -327,14 +323,18 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         Imgproc.threshold(diff1, diff1_t, thresh, 255, Imgproc.THRESH_BINARY);
         Imgproc.threshold(diff2, diff2_t, thresh, 255, Imgproc.THRESH_BINARY);
         //이진화 한 결과물2개를 논리연산하여 두개의 결과가 모두 감지되었을 경우에만 표시
+
         Core.bitwise_and(diff1_t, diff2_t, diff);
 
         //커널 생성
-        Mat kernelErode = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.erode(diff, diff, kernelErode);
-
+        Mat erodeKernel = Imgproc.getStructuringElement
+                (Imgproc.MORPH_RECT, new Size(4, 4));
+        //침식 연산
+        Imgproc.erode(diff, diff, erodeKernel);
         // 많은 확장
-        Mat kernelDilate = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Mat kernelDilate = Imgproc.getStructuringElement
+                (Imgproc.MORPH_RECT, new Size(10, 10));
+        Imgproc.dilate(diff, diff, kernelDilate);
         Imgproc.dilate(diff, diff, kernelDilate);
         //morphology연산, 침식으로 작은 노이즈 제거 후 확장
         //Imgproc.morphologyEx(diff, diff, Imgproc.MORPH_OPEN, k);
@@ -347,7 +347,7 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         diff2.release();
         diff1_t.release();
         diff2_t.release();
-        kernelErode.release();
+        erodeKernel.release();
         kernelDilate.release();
     }
     long detectionStartTime = 0;
@@ -361,13 +361,14 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         //초기화
         contours.clear();
         //객체 외각 탐지
-        Imgproc.findContours(motionMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+        Imgproc.findContours(motionMat, contours, hierarchy,
+                Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
         List<Rect> boundingRects = new ArrayList<>();
         //contours를 기준으로 사각형을 그림
         for (MatOfPoint contour : contours) {
             double area = Imgproc.contourArea(contour);
             //일정 크기 이하의 사각형 무시
-            if (area > 50) {
+            if (area > 1000) {
                 //contour의 꼭짓점들을 찾음.
                 MatOfPoint2f points = new MatOfPoint2f();
                 contour.convertTo(points, CV_32FC2);
@@ -378,12 +379,14 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         }
         //겹치는 사각형 병합
         List<Rect> mergedRectangles = mergeRectangles(boundingRects, 1);
+        mergedRectangles = mergeRectangles(mergedRectangles, 1);
         //주변 사각형 병합
-        List<Rect> finalRectangles = mergeAdjacentRectangles(mergedRectangles, 1000);
+        List<Rect> finalRectangles = mergeAdjacentRectangles(mergedRectangles, 500);
+        finalRectangles = mergeAdjacentRectangles(finalRectangles, 500);
 
 
         for (Rect rect : finalRectangles) {
-            if (rect.area() > 100000) { // 제일 큰 사각형의 넓이가 50000 이상일 경우 트리거.
+            if (rect.area() > 40000) { // 제일 큰 사각형의 넓이가 50000 이상일 경우 트리거.
                 long currentTime = System.currentTimeMillis();
                 //반복 실행 방지. 감지된 객체가 사라져야 다시 활성화
                 if (detect) {
