@@ -23,6 +23,8 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.kakao.sdk.auth.model.OAuthToken;
 import com.kakao.sdk.user.UserApiClient;
 
+import java.util.function.Function;
+
 import kotlin.Unit;
 import kotlin.jvm.functions.Function2;
 import okhttp3.ResponseBody;
@@ -49,8 +51,12 @@ public class MainMenu extends AppCompatActivity {
 
         FirebaseApp.initializeApp(this);
         FirebaseAnalytics.getInstance(this);
-        Notification notification = new Notification(fcmtoken);
-        getFirebaseMessagingToken();
+
+        getFirebaseMessagingToken((v) -> {
+            Notification.receivedToken = fcmtoken;
+            return null;
+        });
+
         //invoke
         setContentView(R.layout.activity_main);
 
@@ -178,14 +184,14 @@ public class MainMenu extends AppCompatActivity {
     }
 
     // FCM토큰얻는 함수
-    private void getFirebaseMessagingToken() {
+    private void getFirebaseMessagingToken(Function<Void, Void> callback) {
         FirebaseMessaging.getInstance().getToken()
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful() && task.getResult() != null) {
                         String token = task.getResult();
                         Log.d("AndroidOpenCv", token);
                         fcmtoken = token;
-                        // 여기서 얻은 토큰을 서버에 전송하거나 사용할 수 있습니다.
+                        callback.apply(null);
                     } else {
                         Log.e("AndroidOpenCv", "Token retrieval failed");
                     }

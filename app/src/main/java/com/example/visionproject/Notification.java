@@ -42,11 +42,11 @@ public class Notification {
 
                 @Override
                 public void onFailure(Call<ResponseBody> call, Throwable t) {
-                    Log.e("통신", "실패");
+                    Log.d("통신", "실패");
                 }
             });
         } else {
-            Log.e("초기화", "Retrofit 객체 안됨");
+            Log.d("초기화", "Retrofit 객체 안됨");
         }
     }
 }

@@ -315,7 +315,7 @@ public class AllSafetyVisionModeActivity extends AppCompatActivity implements Ca
         double meanDiff2 = Core.mean(diff2).val[0];
 
         double thresh = ((meanDiff1 + meanDiff2) / 2.0)+10;
-        Log.d(TAG, "thresh: " + thresh);
+        //Log.d(TAG, "thresh: " + thresh);
         Mat diff1_t = new Mat();
         Mat diff2_t = new Mat();
 
